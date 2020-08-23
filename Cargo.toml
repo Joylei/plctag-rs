@@ -1,0 +1,21 @@
+[package]
+name = "plctag"
+version = "0.1.0"
+authors = ["joylei <leingliu@126.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build]
+rustc-wrapper="sccache"
+
+[dependencies]
+parking_lot="*"
+log="*"
+futures = "*"
+tokio= {version="0.2.22", features=["rt-core", "blocking", "sync", "time"]}
+paste="*"
+lazy_static="*"
+
+[build-dependencies]
+bindgen="*"
