@@ -68,16 +68,6 @@ impl RawTag {
         }
     }
 
-    /// tag size of bytes
-    #[inline]
-    pub fn size(&self) -> Result<u32> {
-        let value = unsafe { ffi::plc_tag_get_size(self.tag_id) };
-        if value < 0 {
-            return Err(Status::from(value));
-        }
-        Ok(value as u32)
-    }
-
     /// element size
     pub fn element_size(&self) -> i32 {
         self.get_attr("elem_size", 0)
@@ -154,6 +144,16 @@ pub trait Accessor: TagId {
     fn status(&self) -> Status {
         let rc = unsafe { ffi::plc_tag_status(self.id()) };
         Status::new(rc)
+    }
+
+    /// tag size of bytes
+    #[inline]
+    fn size(&self) -> Result<u32> {
+        let value = unsafe { ffi::plc_tag_get_size(self.id()) };
+        if value < 0 {
+            return Err(Status::from(value));
+        }
+        Ok(value as u32)
     }
 
     #[inline]
@@ -318,6 +318,25 @@ pub trait Accessor: TagId {
     fn set_f64(&self, byte_offset: u32, value: f64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float64(self.id(), byte_offset as i32, value) };
         Status::new(rc).as_result()
+    }
+
+    fn get_bytes(&self) -> Result<Vec<u8>> {
+        let size = self.size()?;
+        let mut buf = vec![];
+        for i in 0..size {
+            let val = self.get_u8(i)?;
+            buf.push(val);
+        }
+        Ok(buf)
+    }
+
+    fn set_bytes(&self, buf: &[u8]) -> Result<()> {
+        let size = self.size()?;
+        let buf = &buf[0..std::cmp::min(buf.len(), size as usize)];
+        for (i, v) in buf.iter().enumerate() {
+            self.set_u8(i as u32, *v)?;
+        }
+        Ok(())
     }
 }
 

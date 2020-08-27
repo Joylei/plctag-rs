@@ -6,11 +6,14 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::sync::mpsc::Receiver;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use tokio::prelude::*;
 use tokio::sync::Mutex;
+use tokio::sync::Notify;
 use tokio::task;
 use tokio::time;
 
@@ -21,6 +24,7 @@ lazy_static! {
 
 struct Holder {
     ptr: *mut EventTag,
+    tx: Sender<Event>,
 }
 
 impl Deref for Holder {
@@ -38,13 +42,14 @@ impl DerefMut for Holder {
 
 unsafe impl Send for Holder {}
 
-fn global_register(tag: &mut EventTag) {
+fn global_register(tag: &mut EventTag, tx: Sender<Event>) {
     let mut data = TAGS.lock();
     let map = &mut *data;
     map.insert(
         tag.raw.id(),
         Holder {
             ptr: tag as *mut EventTag,
+            tx,
         },
     );
     unsafe {
@@ -52,33 +57,65 @@ fn global_register(tag: &mut EventTag) {
     }
 }
 
-fn global_unregister(tag: &mut EventTag) {
+fn global_unregister(raw: &EventTag) {
     let mut data = TAGS.lock();
     let map = &mut *data;
-    map.remove(&tag.raw.id());
-    tag.raw.unregister_callback();
+    map.remove(&raw.id());
+    raw.unregister_callback();
 }
 
 extern "C" fn on_tag_event(tag_id: i32, event: i32, status: i32) {
     let data = TAGS.lock();
     let map = &*data;
-    if let Some(tag) = map.get(&tag_id) {
-        EventTag::on_event(&tag, event, status);
+    if let Some(holder) = map.get(&tag_id) {
+        holder.tx.send(Event { event, status }).unwrap();
     }
+}
+
+pub struct Event {
+    event: i32,
+    status: i32,
 }
 
 pub struct EventTag {
     raw: Arc<RawTag>,
+    rx: Receiver<Event>,
     created: Option<Status>,
 }
 
 impl EventTag {
-    pub fn new(raw: RawTag) -> Self {
+    pub async fn new(path: String, duration: Duration) -> Result<Self> {
+        let raw = asyncify(move || RawTag::new(&path, 0)).await?;
+        let raw = Arc::new(raw);
+        let now = Instant::now();
+        loop {
+            if now.elapsed() > duration {
+                return Err(Status::err_timeout());
+            }
+            let raw2 = Arc::clone(&raw);
+            let res = asyncify(move || Ok(raw2.status())).await;
+            let status = match res {
+                Ok(status) => status,
+                Err(status) => status,
+            };
+            if status.is_ok() {
+                break;
+            }
+            if status.is_err() {
+                return Err(status);
+            }
+            time::delay_for(Duration::from_millis(1)).await;
+        }
+        Ok(EventTag::from(raw))
+    }
+    pub(crate) fn from(raw: Arc<RawTag>) -> Self {
+        let (tx, rx) = std::sync::mpsc::channel();
         let mut tag = Self {
-            raw: Arc::new(raw),
+            raw: raw,
+            rx,
             created: None,
         };
-        global_register(&mut tag);
+        global_register(&mut tag, tx);
         tag
     }
 
@@ -181,10 +218,6 @@ impl EventTag {
             self.abort_async().await;
         }
         status
-    }
-
-    fn on_event(&self, event: i32, status: i32) {
-        println!("tag {} event {} status {}", self.raw.id(), event, status);
     }
 }
 

@@ -167,6 +167,7 @@ impl<T: TagValue> Tag<T> {
     }
 
     /// read and get the value
+    #[inline]
     pub fn read_and_get(&mut self, timeout: Duration) -> Result<T> {
         if let Err(mut status) = self.read(timeout) {
             while status.is_pending() {
@@ -195,6 +196,7 @@ impl<T: TagValue> Tag<T> {
         Err(Status::err_create())
     }
 
+    #[inline]
     pub fn set_and_write(&mut self, value: T, timeout: Duration) -> Result<()> {
         self.set(value)?;
         self.write(timeout)
