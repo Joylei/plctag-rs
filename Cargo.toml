@@ -9,13 +9,18 @@ edition = "2018"
 [build]
 rustc-wrapper="sccache"
 
+[features]
+default=["async", "value"]
+async=["parking_lot", "futures", "tokio", "lazy_static", "paste"]
+value=["paste"]
+
 [dependencies]
-parking_lot="*"
 log="*"
-futures = "*"
-tokio= {version="0.2.22", features=["rt-core", "blocking", "sync", "time"]}
-paste="*"
-lazy_static="*"
+parking_lot={version="*", optional=true}
+futures ={version="*", optional=true}
+tokio= {version="0.2.22", default-features=false, features=["rt-core", "blocking", "time"], optional=true}
+paste={version="*", optional=true}
+lazy_static={version="*", optional=true}
 
 [build-dependencies]
 bindgen="*"

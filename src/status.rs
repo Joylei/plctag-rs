@@ -95,16 +95,19 @@ impl Status {
         }
     }
 
+    #[doc(hidden)]
     #[inline]
     pub(crate) fn err_timeout() -> Self {
         Status::new(ffi::PLCTAG_ERR_TIMEOUT)
     }
 
+    #[doc(hidden)]
     #[inline]
     pub(crate) fn err_create() -> Self {
         Status::new(ffi::PLCTAG_ERR_CREATE)
     }
 
+    #[doc(hidden)]
     #[inline]
     pub(crate) fn err_task() -> Self {
         Status::new(ERR_TASK_FAILED)

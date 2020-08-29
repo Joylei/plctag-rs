@@ -46,7 +46,10 @@ impl From<u8> for DebugLevel {
             3 => DebugLevel::Info,
             4 => DebugLevel::Detail,
             5 => DebugLevel::Spew,
-            _ => panic!("unsupported value ({}) for DebugLevel", val),
+            _ => {
+                info!("unknown value ({}) for DebugLevel", val);
+                DebugLevel::None
+            }
         }
     }
 }

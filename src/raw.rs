@@ -20,9 +20,11 @@ impl RawTag {
         if tag_id < 0 {
             return Err(Status::new(ffi::PLCTAG_ERR_CREATE));
         }
-        let mut tag = Self { tag_id };
+        Ok(Self { tag_id })
+    }
 
-        Ok(tag)
+    pub fn id(&self) -> i32 {
+        self.tag_id
     }
 
     /// perform write operation.
@@ -146,7 +148,7 @@ pub trait Accessor: TagId {
         Status::new(rc)
     }
 
-    /// tag size of bytes
+    ///value size of bytes
     #[inline]
     fn size(&self) -> Result<u32> {
         let value = unsafe { ffi::plc_tag_get_size(self.id()) };
@@ -320,23 +322,27 @@ pub trait Accessor: TagId {
         Status::new(rc).as_result()
     }
 
-    fn get_bytes(&self) -> Result<Vec<u8>> {
-        let size = self.size()?;
-        let mut buf = vec![];
-        for i in 0..size {
-            let val = self.get_u8(i)?;
-            buf.push(val);
+    fn get_bytes(&self, buf: &mut [u8]) -> Result<usize> {
+        let size = self.size()? as usize;
+        let mut i = 0;
+        for item in buf {
+            if i >= size {
+                break;
+            }
+            *item = self.get_u8(i as u32)?;
+            i += 1;
         }
-        Ok(buf)
+        Ok(i)
     }
 
-    fn set_bytes(&self, buf: &[u8]) -> Result<()> {
+    fn set_bytes(&self, buf: &[u8]) -> Result<usize> {
         let size = self.size()?;
-        let buf = &buf[0..std::cmp::min(buf.len(), size as usize)];
+        let len = std::cmp::min(buf.len(), size as usize);
+        let buf = &buf[0..len];
         for (i, v) in buf.iter().enumerate() {
             self.set_u8(i as u32, *v)?;
         }
-        Ok(())
+        Ok(len)
     }
 }
 
@@ -352,7 +358,7 @@ mod tests {
         let tag = res.unwrap();
 
         let size = tag.size().unwrap();
-        //assert_eq!(size, 4);
+        assert!(size > 0);
 
         //read
         let res = tag.read(100);
