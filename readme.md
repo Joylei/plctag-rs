@@ -80,7 +80,7 @@ read/write UDT
 
      fn set_value(&self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
          self.v1.set_value(accessor, offset)?;
-         self.v1.set_value(accessor, offset + 2)?;
+         self.v2.set_value(accessor, offset + 2)?;
          Ok(())
      }
  }
