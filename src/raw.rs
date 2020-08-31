@@ -6,8 +6,7 @@ use std::ffi::CString;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-/// wrapper of tag of `libplctag`
-///
+/// wrapper of tag model based on `libplctag`
 pub struct RawTag {
     tag_id: i32,
 }
@@ -16,16 +15,31 @@ impl RawTag {
     /// create new RawTag
     /// # Note
     /// if you passed wrong path parameters, your program might crash.
-    /// you'd better use `PathBuilder` to build a path.
-    pub fn new(path: &str, timeout: u32) -> Result<Self> {
-        let path = CString::new(path.to_owned()).unwrap();
+    /// you might want to use `PathBuilder` to build a path.
+    ///
+    /// # Examples
+    /// ```rust,ignore
+    /// use plctag::{RawTag};
+    ///
+    /// let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
+    /// let tag = RawTag::new(path, timeout).unwrap();
+    /// ```
+    pub fn new(path: impl AsRef<str>, timeout: u32) -> Result<Self> {
+        let path: &str = path.as_ref();
+        let path = CString::new(path)?;
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };
         if tag_id < 0 {
-            return Err(Status::new(ffi::PLCTAG_ERR_CREATE));
+            return Err(Status::new(ffi::PLCTAG_ERR_CREATE).into());
         }
         Ok(Self { tag_id })
     }
 
+    /// tag id in `libplctag`.
+    ///
+    /// # Note
+    ///
+    /// The id is not a resource handle.
+    /// The id might be reused by `libplctag`. So if you use it somewhere, please take care.
     pub fn id(&self) -> i32 {
         self.tag_id
     }
@@ -74,28 +88,35 @@ impl RawTag {
     }
 
     /// element size
-    pub fn element_size(&self) -> i32 {
+    pub fn element_size(&self) -> Result<i32> {
         self.get_attr("elem_size", 0)
     }
 
     /// element count
-    pub fn element_count(&self) -> i32 {
+    pub fn element_count(&self) -> Result<i32> {
         self.get_attr("elem_count", 0)
     }
 
     /// get tag attribute
-    pub fn get_attr(&self, attr: &str, default_value: i32) -> i32 {
-        let attr = CString::new(attr).unwrap();
-        unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) }
+    pub fn get_attr(&self, attr: &str, default_value: i32) -> Result<i32> {
+        let attr = CString::new(attr)?;
+        let val =
+            unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) };
+        if val == i32::MIN {
+            // error
+            return Err(self.status().into());
+        }
+        Ok(val)
     }
 
     /// set tag attribute
-    pub fn set_attr(&self, attr: &str, value: i32) -> Status {
-        let attr = CString::new(attr).unwrap();
+    pub fn set_attr(&self, attr: &str, value: i32) -> Result<()> {
+        let attr = CString::new(attr)?;
         let rc = unsafe { ffi::plc_tag_set_int_attribute(self.tag_id, attr.as_ptr(), value) };
-        rc.into()
+        Status::new(rc).as_result()
     }
 
+    /// poll tag status
     #[inline]
     pub fn status(&self) -> Status {
         let rc = unsafe { ffi::plc_tag_status(self.tag_id) };
@@ -107,7 +128,7 @@ impl RawTag {
     pub fn size(&self) -> Result<u32> {
         let value = unsafe { ffi::plc_tag_get_size(self.tag_id) };
         if value < 0 {
-            return Err(Status::from(value));
+            return Err(Status::from(value).into());
         }
         Ok(value as u32)
     }
@@ -117,7 +138,7 @@ impl RawTag {
         let val = unsafe { ffi::plc_tag_get_bit(self.tag_id, bit_offset as i32) };
         if val == i32::MIN {
             // error
-            return Err(self.status());
+            return Err(self.status().into());
         }
         Ok(val == 1)
     }

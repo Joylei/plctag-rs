@@ -1,6 +1,6 @@
 #![cfg(feature = "async")]
 
-use super::{asyncify, asyncify2, get_status};
+use super::{asyncify, get_status};
 use crate::{RawTag, Result, Status, TagValue};
 use std::cell::UnsafeCell;
 use std::future::Future;
@@ -13,29 +13,31 @@ use tokio::time;
 #[doc(hidden)]
 pub(crate) struct Inner {
     raw: RawTag,
-    /// event need to be mutable, wrap it with `UnsafeCell`
+    /// event need to be mutable, but `Arc` wrapped `Inner` is not mutable, wrap it with `UnsafeCell`
     event: UnsafeCell<event::Event>,
 }
 
 unsafe impl Sync for Inner {}
 unsafe impl Send for Inner {}
 
+/// async wrapper of `RawTag`
 pub struct AsyncTag {
     inner: Arc<Inner>,
 }
 
 impl AsyncTag {
+    /// create new instance of `AsyncTag`
     /// # Note
     /// if you passed wrong path parameters, your program might crash.
     /// you'd better use `PathBuilder` to build a path.
-    pub async fn new(path: &str) -> Result<Self> {
-        let path = path.to_string();
-        let raw = asyncify(move || RawTag::new(&path, 0)).await?;
+    pub async fn new(path: impl AsRef<str>) -> Result<Self> {
+        let path = path.as_ref().to_owned();
+        let raw = asyncify(move || RawTag::new(path, 0)).await?;
         let inner = Arc::new(Inner {
             raw,
             event: UnsafeCell::new(event::Event::new()),
         });
-        // no efficient way to know when tag created, constantly poll status
+        // no efficient way to know when tag will be created, constantly poll status
         loop {
             let inner2 = Arc::clone(&inner);
             let status = get_status(move || inner2.raw.status()).await;
@@ -44,7 +46,7 @@ impl AsyncTag {
                 break;
             }
             if status.is_err() {
-                return Err(status);
+                return Err(status.into());
             }
             time::delay_for(Duration::from_millis(1)).await
         }
@@ -52,10 +54,17 @@ impl AsyncTag {
         Ok(Self { inner })
     }
 
+    /// tag id in `libplctag`.
+    ///
+    /// # Note
+    ///
+    /// The id is not a resource handle.
+    /// The id might be reused by `libplctag`. So if you use it somewhere, please take care.
     pub fn id(&self) -> i32 {
         self.inner.raw.id()
     }
 
+    /// poll tag status
     pub async fn status(&self) -> Status {
         let inner = Arc::clone(&self.inner);
         let status = get_status(move || inner.raw.status()).await;
@@ -68,28 +77,30 @@ impl AsyncTag {
         asyncify(move || inner.raw.size()).await
     }
 
-    pub async fn element_size(&self) -> i32 {
-        self.get_attr("elem_size", 0).await.unwrap_or(0)
+    /// element size
+    pub async fn element_size(&self) -> Result<i32> {
+        self.get_attr("elem_size", 0).await
     }
 
-    pub async fn element_count(&self) -> i32 {
-        self.get_attr("elem_count", 0).await.unwrap_or(0)
+    /// element count
+    pub async fn element_count(&self) -> Result<i32> {
+        self.get_attr("elem_count", 0).await
     }
 
     pub async fn get_attr(&self, attr: &'static str, default_value: i32) -> Result<i32> {
         let inner = Arc::clone(&self.inner);
-        asyncify2(move || inner.raw.get_attr(attr, default_value)).await
+        asyncify(move || inner.raw.get_attr(attr, default_value)).await
     }
 
-    pub async fn set_attr(&self, attr: &'static str, value: i32) -> Status {
+    pub async fn set_attr(&self, attr: &'static str, value: i32) -> Result<()> {
         let inner = Arc::clone(&self.inner);
-        get_status(move || inner.raw.set_attr(attr, value)).await
+        asyncify(move || inner.raw.set_attr(attr, value)).await
     }
 
     pub async fn read_and_get<T: TagValue + Send + 'static>(&self, offset: u32) -> Result<T> {
         let status = self.read().await;
         if !status.is_ok() {
-            return Err(status);
+            return Err(status.into());
         }
         self.get_value(offset).await
     }
@@ -103,7 +114,7 @@ impl AsyncTag {
         if status.is_ok() {
             Ok(())
         } else {
-            Err(status)
+            Err(status.into())
         }
     }
 

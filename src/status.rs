@@ -1,15 +1,12 @@
-use crate::ffi;
+use crate::{error::Error, ffi, Result};
 use std::ffi::CStr;
-use std::result;
 
 pub const PLCTAG_STATUS_OK: i32 = ffi::PLCTAG_STATUS_OK as i32;
 pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
 
 /// custom error for async task failure
 #[cfg(feature = "async")]
-pub const ERR_TASK_FAILED: i32 = -12345678;
-
-pub type Result<T> = result::Result<T, Status>;
+pub const ERR_TASK_FAILED: i32 = -123456789;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Status {
@@ -67,7 +64,7 @@ impl Status {
         if self.is_ok() {
             Ok(())
         } else {
-            Err(*self)
+            Err(Error::from(*self))
         }
     }
 
@@ -108,20 +105,6 @@ impl Status {
     #[inline]
     pub(crate) fn err_task() -> Self {
         Status::new(ERR_TASK_FAILED)
-    }
-}
-
-impl From<Status> for Result<()> {
-    #[inline]
-    fn from(status: Status) -> Result<()> {
-        status.as_result()
-    }
-}
-
-impl From<&Status> for Result<()> {
-    #[inline]
-    fn from(status: &Status) -> Result<()> {
-        status.as_result()
     }
 }
 

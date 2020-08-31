@@ -1,6 +1,6 @@
 //! a rust wrapper of `libplctag`, with rust style APIs and useful extensions.
 //!
-//! # features
+//! # Features
 //! - synchronous APIs
 //! - asynchronous APIs based on Tokio
 //! - tag path builder
@@ -11,7 +11,9 @@
 //! ```rust,ignore
 //! use plctag::{RawTag, TagValue, GetValue, SetValue};
 //! let timeout = 100;//ms
-//! let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
+//!
+//! // YOUR TAG DEFINITION
+//! let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
 //! let tag = RawTag::new(path, timeout).unwrap();
 //!
 //! //read tag
@@ -38,7 +40,8 @@
 //!
 //! let mut rt = Runtime::new()::unwrap();
 //! rt.block_on(async move {
-//!     let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
+//!     // YOUR TAG DEFINITION
+//!     let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
 //!     let tag = AsyncTag::new(path).await.unwrap();
 //!     
 //!     let offset = 0;
@@ -123,7 +126,9 @@ extern crate paste;
 #[cfg(feature = "async")]
 extern crate tokio;
 
+pub mod builder;
 pub(crate) mod debug;
+pub(crate) mod error;
 pub(crate) mod ffi;
 #[cfg(feature = "async")]
 pub mod future;
@@ -135,10 +140,12 @@ pub(crate) mod value;
 
 pub use debug::DebugLevel;
 pub use raw::*;
-pub use status::{Result, Status};
+pub use status::Status;
 
 #[cfg(any(feature = "async", feature = "value"))]
 pub use value::{Accessor, Bit, GetValue, SetValue, TagValue};
+
+pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub mod prelude {
     pub use crate::raw::*;

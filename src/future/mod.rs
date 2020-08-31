@@ -15,19 +15,7 @@ where
 {
     match task::spawn_blocking(f).await {
         Ok(res) => res,
-        Err(_) => Err(Status::err_task()),
-    }
-}
-
-#[inline]
-pub(crate) async fn asyncify2<F, T>(f: F) -> Result<T>
-where
-    F: FnOnce() -> T + Send + 'static,
-    T: Send + 'static,
-{
-    match task::spawn_blocking(f).await {
-        Ok(res) => Ok(res),
-        Err(_) => Err(Status::err_task()),
+        Err(_) => Err(Status::err_task().into()),
     }
 }
 
