@@ -5,9 +5,9 @@ use std::ffi::CString;
 
 /// get library version (major, minor, patch) of `libplctag`
 pub fn get_version() -> (usize, usize, usize) {
-    let major = get_int_attr("version_major", 0);
-    let minor = get_int_attr("version_minor", 0);
-    let patch = get_int_attr("version_patch", 0);
+    let major = get_int_attr("version_major", 0).unwrap_or(0);
+    let minor = get_int_attr("version_minor", 0).unwrap_or(0);
+    let patch = get_int_attr("version_patch", 0).unwrap_or(0);
     (major as usize, minor as usize, patch as usize)
 }
 
@@ -26,9 +26,10 @@ pub fn check_version(major: u32, minor: u32, patch: u32) -> bool {
 /// - version_minor
 /// - version_patch
 #[inline]
-pub fn get_int_attr(attr: impl AsRef<str>, default: i32) -> i32 {
-    let attr = CString::new(attr.as_ref()).unwrap();
-    unsafe { ffi::plc_tag_get_int_attribute(0, attr.as_ptr(), default) }
+pub fn get_int_attr(attr: impl AsRef<str>, default: i32) -> Result<i32> {
+    let attr = CString::new(attr.as_ref())?;
+    let val = unsafe { ffi::plc_tag_get_int_attribute(0, attr.as_ptr(), default) };
+    Ok(val)
 }
 
 /// set library attribute of `libplctag`
@@ -46,16 +47,18 @@ pub fn get_int_attr(attr: impl AsRef<str>, default: i32) -> i32 {
 /// let status = set_int_attr("debug", level);
 /// ```
 #[inline]
-pub fn set_int_attr(attr: impl AsRef<str>, value: i32) -> Status {
+pub fn set_int_attr(attr: impl AsRef<str>, value: i32) -> Result<()> {
     let attr = CString::new(attr.as_ref()).unwrap();
     let rc = unsafe { ffi::plc_tag_set_int_attribute(0, attr.as_ptr(), value) };
-    Status::new(rc)
+    Status::new(rc).into_result()
 }
 
 /// get debug level of `libplctag`
 #[inline]
 pub fn get_debug_level() -> DebugLevel {
-    let level = get_int_attr("debug", 0) as u8;
+    let level = get_int_attr("debug", 0)
+        .map(|v| v as u8)
+        .unwrap_or_default();
     level.into()
 }
 

@@ -60,7 +60,7 @@ impl Status {
     }
 
     #[inline]
-    pub fn as_result(&self) -> Result<()> {
+    pub fn into_result(&self) -> Result<()> {
         if self.is_ok() {
             Ok(())
         } else {

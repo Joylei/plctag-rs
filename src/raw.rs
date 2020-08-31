@@ -25,8 +25,7 @@ impl RawTag {
     /// let tag = RawTag::new(path, timeout).unwrap();
     /// ```
     pub fn new(path: impl AsRef<str>, timeout: u32) -> Result<Self> {
-        let path: &str = path.as_ref();
-        let path = CString::new(path)?;
+        let path = CString::new(path.as_ref())?;
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };
         if tag_id < 0 {
             return Err(Status::new(ffi::PLCTAG_ERR_CREATE).into());
@@ -99,7 +98,7 @@ impl RawTag {
 
     /// get tag attribute
     pub fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
-        let attr = CString::new(attr.as_ref().to_owned())?;
+        let attr = CString::new(attr.as_ref())?;
         let val =
             unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) };
         if val == i32::MIN {
@@ -111,9 +110,9 @@ impl RawTag {
 
     /// set tag attribute
     pub fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
-        let attr = CString::new(attr.as_ref().to_owned())?;
+        let attr = CString::new(attr.as_ref())?;
         let rc = unsafe { ffi::plc_tag_set_int_attribute(self.tag_id, attr.as_ptr(), value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
 
     /// poll tag status
@@ -148,7 +147,7 @@ impl RawTag {
         let rc = unsafe {
             ffi::plc_tag_set_bit(self.tag_id, bit_offset as i32, if value { 1 } else { 0 })
         };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
 
     #[inline]
@@ -166,7 +165,7 @@ impl RawTag {
     pub fn get_i8(&self, byte_offset: u32) -> Result<i8> {
         let val = unsafe { ffi::plc_tag_get_int8(self.tag_id, byte_offset as i32) };
         if val == i8::MIN {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
@@ -174,14 +173,14 @@ impl RawTag {
     #[inline]
     pub fn set_i8(&self, byte_offset: u32, value: i8) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int8(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
 
     #[inline]
     pub fn get_u8(&self, byte_offset: u32) -> Result<u8> {
         let val = unsafe { ffi::plc_tag_get_uint8(self.tag_id, byte_offset as i32) };
         if val == u8::MAX {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
@@ -189,13 +188,13 @@ impl RawTag {
     #[inline]
     pub fn set_u8(&self, byte_offset: u32, value: u8) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint8(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_i16(&self, byte_offset: u32) -> Result<i16> {
         let val = unsafe { ffi::plc_tag_get_int16(self.tag_id, byte_offset as i32) };
         if val == i16::MIN {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
@@ -203,98 +202,98 @@ impl RawTag {
     #[inline]
     pub fn set_i16(&self, byte_offset: u32, value: i16) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int16(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_u16(&self, byte_offset: u32) -> Result<u16> {
         let val = unsafe { ffi::plc_tag_get_uint16(self.tag_id, byte_offset as i32) };
         if val == u16::MAX {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_u16(&self, byte_offset: u32, value: u16) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint16(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_i32(&self, byte_offset: u32) -> Result<i32> {
         let val = unsafe { ffi::plc_tag_get_int32(self.tag_id, byte_offset as i32) };
         if val == i32::MIN {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_i32(&self, byte_offset: u32, value: i32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int32(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_u32(&self, byte_offset: u32) -> Result<u32> {
         let val = unsafe { ffi::plc_tag_get_uint32(self.tag_id, byte_offset as i32) };
         if val == u32::MAX {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_u32(&self, byte_offset: u32, value: u32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint32(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_i64(&self, byte_offset: u32) -> Result<i64> {
         let val = unsafe { ffi::plc_tag_get_int64(self.tag_id, byte_offset as i32) };
         if val == i64::MIN {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_i64(&self, byte_offset: u32, value: i64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int64(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_u64(&self, byte_offset: u32) -> Result<u64> {
         let val = unsafe { ffi::plc_tag_get_uint64(self.tag_id, byte_offset as i32) };
         if val == u64::MAX {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_u64(&self, byte_offset: u32, value: u64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint64(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_f32(&self, byte_offset: u32) -> Result<f32> {
         let val = unsafe { ffi::plc_tag_get_float32(self.tag_id, byte_offset as i32) };
         if (val - f32::MIN).abs() <= f32::EPSILON {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_f32(&self, byte_offset: u32, value: f32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float32(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
     #[inline]
     pub fn get_f64(&self, byte_offset: u32) -> Result<f64> {
         let val = unsafe { ffi::plc_tag_get_float64(self.tag_id, byte_offset as i32) };
         if (val - f64::MIN).abs() <= f64::EPSILON {
-            self.status().as_result()?;
+            self.status().into_result()?;
         }
         Ok(val)
     }
     #[inline]
     pub fn set_f64(&self, byte_offset: u32, value: f64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float64(self.tag_id, byte_offset as i32, value) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
 
     pub fn get_bytes(&self, buf: &mut [u8]) -> Result<usize> {
@@ -339,7 +338,7 @@ impl RawTag {
     /// abort the pending operation
     pub fn abort(&self) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_abort(self.tag_id) };
-        Status::new(rc).as_result()
+        Status::new(rc).into_result()
     }
 }
 

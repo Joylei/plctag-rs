@@ -157,7 +157,7 @@ extern crate tokio;
 
 pub mod builder;
 pub(crate) mod debug;
-pub(crate) mod error;
+pub mod error;
 pub(crate) mod ffi;
 #[cfg(feature = "async")]
 pub mod future;
@@ -230,6 +230,25 @@ pub mod logging {
             plc::unregister_logger();
             let rc = plc::register_logger(Some(log_route));
             info!("register logger for libplctag: {}", rc);
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::plc;
+        use crate::DebugLevel;
+        use crate::RawTag;
+
+        #[test]
+        fn test_log_adapt() {
+            plc::set_debug_level(DebugLevel::Detail);
+
+            let res = RawTag::new("make=system&family=library&name=debug&debug=4", 100);
+            assert!(res.is_ok());
+            let tag = res.unwrap();
+            let status = tag.status();
+            assert!(status.is_ok());
         }
     }
 }
