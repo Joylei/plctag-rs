@@ -8,6 +8,8 @@ fn main() {
     // Tell cargo to tell rustc to link the system bzip2
     // shared library.
     println!("cargo:rustc-link-lib=plctag");
+
+    #[cfg(windows)]
     println!("cargo:rustc-link-search={}", r"3rd\win-x64");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes

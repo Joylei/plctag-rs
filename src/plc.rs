@@ -39,7 +39,7 @@ pub fn get_int_attr(attr: &str, default: i32) -> i32 {
 /// see `debug::DebugLevel` for valid values
 ///
 /// # Examples
-/// ```
+/// ```rust,ignore
 /// use plctag::DebugLevel;
 /// use plctag::set_int_attr;
 ///

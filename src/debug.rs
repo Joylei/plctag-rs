@@ -47,7 +47,7 @@ impl From<u8> for DebugLevel {
             4 => DebugLevel::Detail,
             5 => DebugLevel::Spew,
             _ => {
-                info!("unknown value ({}) for DebugLevel", val);
+                warn!("unknown value ({}) for DebugLevel", val);
                 DebugLevel::None
             }
         }

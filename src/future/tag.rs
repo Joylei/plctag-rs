@@ -1,9 +1,7 @@
 #![cfg(feature = "async")]
 
-use super::{asyncify, get_status};
-use crate::raw::{Accessor, RawTag};
-use crate::value::TagValue;
-use crate::{Result, Status};
+use super::{asyncify, asyncify2, get_status};
+use crate::{RawTag, Result, Status, TagValue};
 use std::cell::UnsafeCell;
 use std::future::Future;
 use std::pin::Pin;
@@ -27,7 +25,11 @@ pub struct AsyncTag {
 }
 
 impl AsyncTag {
-    pub async fn new(path: String) -> Result<Self> {
+    /// # Note
+    /// if you passed wrong path parameters, your program might crash.
+    /// you'd better use `PathBuilder` to build a path.
+    pub async fn new(path: &str) -> Result<Self> {
+        let path = path.to_string();
         let raw = asyncify(move || RawTag::new(&path, 0)).await?;
         let inner = Arc::new(Inner {
             raw,
@@ -64,6 +66,24 @@ impl AsyncTag {
     pub async fn size(&self) -> Result<u32> {
         let inner = Arc::clone(&self.inner);
         asyncify(move || inner.raw.size()).await
+    }
+
+    pub async fn element_size(&self) -> i32 {
+        self.get_attr("elem_size", 0).await.unwrap_or(0)
+    }
+
+    pub async fn element_count(&self) -> i32 {
+        self.get_attr("elem_count", 0).await.unwrap_or(0)
+    }
+
+    pub async fn get_attr(&self, attr: &'static str, default_value: i32) -> Result<i32> {
+        let inner = Arc::clone(&self.inner);
+        asyncify2(move || inner.raw.get_attr(attr, default_value)).await
+    }
+
+    pub async fn set_attr(&self, attr: &'static str, value: i32) -> Status {
+        let inner = Arc::clone(&self.inner);
+        get_status(move || inner.raw.set_attr(attr, value)).await
     }
 
     pub async fn read_and_get<T: TagValue + Send + 'static>(&self, offset: u32) -> Result<T> {
@@ -331,9 +351,9 @@ mod event {
         }
 
         fn fire(&self, args: EventArgs) {
-            self.ready.store(true, Ordering::Relaxed);
             let args_inner = &mut *self.args.lock();
             *args_inner = args;
+            self.ready.store(true, Ordering::Relaxed);
             self.waker.wake();
         }
 
@@ -382,12 +402,12 @@ mod tests {
             assert!(res.is_ok());
             let tag = res.unwrap();
 
-            let size = tag.size().await.unwrap();
-            assert!(size > 0);
-            let res = tag.read_and_get(0).await;
-            assert!(res.is_ok());
-            let level: u32 = res.unwrap();
-            assert_eq!(level, 4);
+            // let size = tag.size().await.unwrap();
+            // assert!(size > 0);
+            // let res = tag.read_and_get(0).await;
+            // assert!(res.is_ok());
+            // let level: u32 = res.unwrap();
+            // assert_eq!(level, 4);
 
             let res = tag.set_and_write(0, 1 as u32).await;
             assert!(res.is_ok());
