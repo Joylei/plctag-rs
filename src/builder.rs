@@ -1,13 +1,11 @@
 use crate::{DebugLevel, Result};
-use std::{
-    fmt,
-    ops::{Deref, DerefMut},
-};
+use std::fmt;
 
+/// builder to build tag full path
 #[derive(Default, Debug)]
 pub struct PathBuilder {
-    debug: Option<DebugLevel>,
     protocol: Option<Protocol>,
+    debug: Option<DebugLevel>,
     elem_count: Option<usize>,
     elem_size: Option<usize>,
     read_cache_ms: Option<usize>,
@@ -26,6 +24,7 @@ impl PathBuilder {
 
     /// generic attribute.
     /// defining the current debugging level.
+    /// please use [`plc::set_debug_level`](../plc/fn.set_debug_level.html) instead.
     #[deprecated]
     #[inline]
     pub fn debug(&mut self, level: DebugLevel) -> &mut Self {
@@ -80,8 +79,8 @@ impl PathBuilder {
     /// Required IP address or host name and optional port
     /// This tells the library what host name or IP address to use for the PLC. Can have an optional port at the end, e.g. gateway=10.1.2.3:502 where the :502 part specifies the port.
     #[inline]
-    pub fn gateway(&mut self, gateway: &str) -> &mut Self {
-        self.gateway = Some(gateway.to_string());
+    pub fn gateway(&mut self, gateway: impl AsRef<str>) -> &mut Self {
+        self.gateway = Some(gateway.as_ref().to_owned());
         self
     }
 
@@ -90,9 +89,17 @@ impl PathBuilder {
     /// - ModBus
     /// Required the type and first register number of a tag, e.g. co42 for coil 42 (counts from zero).
     /// The supported register type prefixes are co for coil, di for discrete inputs, hr for holding registers and ir for input registers. The type prefix must be present and the register number must be greater than or equal to zero and less than or equal to 65535. Modbus examples: co21 - coil 21, di22 - discrete input 22, hr66 - holding register 66, ir64000 - input register 64000.
+    ///
+    /// you might want to use `register()` instead of `name()` for Modbus
     #[inline]
-    pub fn name(&mut self, name: &str) -> &mut Self {
-        self.name = Some(name.to_string());
+    pub fn name(&mut self, name: impl AsRef<str>) -> &mut Self {
+        self.name = Some(name.as_ref().to_owned());
+        self
+    }
+
+    /// set register for Modbus
+    pub fn register(&mut self, reg: Register) -> &mut Self {
+        self.name = Some(format!("{}", reg));
         self
     }
 
@@ -103,8 +110,8 @@ impl PathBuilder {
     /// Required The server/unit ID. Must be an integer value between 0 and 255.
     /// Servers may support more than one unit or may bridge to other units.
     #[inline]
-    pub fn path(&mut self, path: &str) -> &mut Self {
-        self.path = Some(path.to_string());
+    pub fn path(&mut self, path: impl AsRef<str>) -> &mut Self {
+        self.path = Some(path.as_ref().to_owned());
         self
     }
 
@@ -156,8 +163,12 @@ impl PathBuilder {
                 if self.name.is_none() {
                     return Err("name required".into());
                 }
-                if self.path.is_none() {
-                    return Err("path required".into());
+                //path is number [0-255]
+                match self.path {
+                    Some(ref path) => {
+                        let _: u8 = path.parse().or(Err("path is a number in range [0-255]"))?;
+                    }
+                    None => return Err("path required".into()),
                 }
                 if self.elem_size.is_none() {
                     return Err("element size required".into());
@@ -167,20 +178,31 @@ impl PathBuilder {
         Ok(())
     }
 
+    /// build full tag path
     pub fn build(&self) -> Result<String> {
         self.check()?;
         let mut path_buf = vec![];
         let protocol = self.protocol.unwrap();
         path_buf.push(format!("protocol={}", protocol));
 
-        if let Some(plc) = self.plc {
-            path_buf.push(format!("plc={}", plc));
+        match protocol {
+            Protocol::EIP => {
+                if let Some(plc) = self.plc {
+                    path_buf.push(format!("plc={}", plc));
+                }
+
+                if let Some(yes) = self.use_connected_msg {
+                    path_buf.push(format!("use_connected_msg={}", yes as u8));
+                }
+            }
+            Protocol::ModBus => {}
+        }
+
+        if let Some(ref gateway) = self.gateway {
+            path_buf.push(format!("gateway={}", gateway));
         }
         if let Some(ref path) = self.path {
             path_buf.push(format!("path={}", path));
-        }
-        if let Some(ref gateway) = self.gateway {
-            path_buf.push(format!("gateway={}", gateway));
         }
         if let Some(ref name) = self.name {
             path_buf.push(format!("name={}", name));
@@ -196,9 +218,7 @@ impl PathBuilder {
         if let Some(read_cache_ms) = self.read_cache_ms {
             path_buf.push(format!("read_cache_ms={}", read_cache_ms));
         }
-        if let Some(yes) = self.use_connected_msg {
-            path_buf.push(format!("use_connected_msg={}", yes as u8));
-        }
+
         if let Some(debug) = self.debug {
             let level: u8 = debug.into();
             path_buf.push(format!("debug={}", level));
@@ -208,9 +228,12 @@ impl PathBuilder {
     }
 }
 
+/// library supported protocols
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Protocol {
+    /// EIP protocol
     EIP,
+    /// Modbus protocol
     ModBus,
 }
 
@@ -223,6 +246,30 @@ impl fmt::Display for Protocol {
     }
 }
 
+///modbus supported register
+pub enum Register {
+    ///coil registers
+    Coil(u16),
+    ///discrete inputs
+    Discrete(u16),
+    ///holding registers
+    Holding(u16),
+    ///input registers
+    Input(u16),
+}
+
+impl fmt::Display for Register {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Register::Coil(v) => write!(f, "co{}", v),
+            Register::Discrete(v) => write!(f, "di{}", v),
+            Register::Holding(v) => write!(f, "hr{}", v),
+            Register::Input(v) => write!(f, "ir{}", v),
+        }
+    }
+}
+
+/// plc kind, required for EIP protocol
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PlcKind {
     /// Tell the library that this tag is in a Control Logix-class PLC
@@ -252,6 +299,7 @@ impl fmt::Display for PlcKind {
     }
 }
 
+/// builder to build `RawTag`
 pub struct TagBuilder {
     inner: PathBuilder,
 }
@@ -265,23 +313,14 @@ impl TagBuilder {
         }
     }
 
-    pub fn build(&self, timeout: u32) -> Result<RawTag> {
+    pub fn config<F: FnMut(&mut PathBuilder)>(&mut self, mut f: F) -> &Self {
+        f(&mut self.inner);
+        self
+    }
+
+    pub fn create(&self, timeout: u32) -> Result<RawTag> {
         let path = self.inner.build()?;
         RawTag::new(path, timeout)
-    }
-}
-
-impl Deref for TagBuilder {
-    type Target = PathBuilder;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl DerefMut for TagBuilder {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.inner
     }
 }
 
@@ -299,21 +338,23 @@ mod tests {
             .element_count(1)
             .path("1,0")
             .read_cache_ms(0)
-            .build();
-        assert_eq!(path, "protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16&read_cache_ms=0");
+            .build()
+            .unwrap();
+        assert_eq!(path, "protocol=ab-eip&plc=controllogix&gateway=192.168.1.120&path=1,0&name=MyTag1&elem_count=1&elem_size=16&read_cache_ms=0");
     }
 
     #[test]
     fn test_modbus_builder() {
         let path = PathBuilder::new()
             .protocol(Protocol::ModBus)
-            .gateway("192.168.1.120:8080")
-            .plc(PlcKind::ControlLogix)
-            .name("MyTag1")
+            .gateway("192.168.1.120:502")
+            .path("0")
+            .register(Register::Coil(42))
             .element_size(16)
             .element_count(1)
             .read_cache_ms(0)
-            .build();
-        assert_eq!(path, "protocol=modbus-tcp&plc=controllogix&gateway=192.168.1.120:8080&name=MyTag1&elem_count=1&elem_size=16&read_cache_ms=0");
+            .build()
+            .unwrap();
+        assert_eq!(path, "protocol=modbus-tcp&gateway=192.168.1.120:502&path=0&name=co42&elem_count=1&elem_size=16&read_cache_ms=0");
     }
 }

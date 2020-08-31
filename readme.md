@@ -1,11 +1,11 @@
 # plctag-rs
 
-a rust wrapper of [`libplctag`](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
+a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
 
 ## Features
 
 - synchronous APIs
-- asynchronous APIs based on Tokio
+- asynchronous APIs based on `Tokio`; blocking operations are posted to `tokio::task::spawn_blocking`; asynchronous read/write based on event callback.
 - tag path builder
 - UDT support
 

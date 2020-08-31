@@ -21,6 +21,29 @@ unsafe impl Sync for Inner {}
 unsafe impl Send for Inner {}
 
 /// async wrapper of `RawTag`
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use plctag::future::AsyncTag;
+/// use tokio::runtime::Runtime;
+///
+/// let mut rt = Runtime::new()::unwrap();
+/// rt.block_on(async move {
+///     // YOUR TAG DEFINITION
+///     let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
+///     let tag = AsyncTag::new(path).await.unwrap();
+///     
+///     let offset = 0;
+///     let value:u16 = 100;
+///     //write tag
+///     tag.set_and_write(offset, value).await.unwrap();
+///     // read tag
+///     let value:u16 = tag.read_and_get(offset).await.unwrap();
+///     assert_eq!(value, 100);
+/// });
+///
+/// ```
 pub struct AsyncTag {
     inner: Arc<Inner>,
 }
@@ -87,13 +110,15 @@ impl AsyncTag {
         self.get_attr("elem_count", 0).await
     }
 
-    pub async fn get_attr(&self, attr: &'static str, default_value: i32) -> Result<i32> {
+    pub async fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
         let inner = Arc::clone(&self.inner);
+        let attr = attr.as_ref().to_owned();
         asyncify(move || inner.raw.get_attr(attr, default_value)).await
     }
 
-    pub async fn set_attr(&self, attr: &'static str, value: i32) -> Result<()> {
+    pub async fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
         let inner = Arc::clone(&self.inner);
+        let attr = attr.as_ref().to_owned();
         asyncify(move || inner.raw.set_attr(attr, value)).await
     }
 

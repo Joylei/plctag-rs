@@ -3,6 +3,7 @@
 use crate::{RawTag, Result};
 use paste::paste;
 
+/// getter&setter for tag
 pub trait Accessor {
     fn get_bit(&self, bit_offset: u32) -> Result<bool>;
     fn set_bit(&self, bit_offset: u32, value: bool) -> Result<()>;
@@ -124,14 +125,14 @@ macro_rules! value_impl {
 /// }
 /// impl TagValue for MyUDT {
 ///     fn get_value(&mut self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
-///         self.v1.get_value(accessor, 0)?;
-///         self.v2.get_value(accessor, 2)?;
+///         self.v1.get_value(accessor, offset)?;
+///         self.v2.get_value(accessor, offset + 2)?;
 ///         Ok(())
 ///     }
 ///
 ///     fn set_value(&mut self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
-///         self.v1.set_value(accessor, 0)?;
-///         self.v1.set_value(accessor, 2)?;
+///         self.v1.set_value(accessor, offset)?;
+///         self.v2.set_value(accessor, offset+2)?;
 ///     }
 /// }
 ///
@@ -217,11 +218,15 @@ impl<T: TagValue> TagValue for Option<T> {
     }
 }
 
+/// get tag value of `T`
 pub trait GetValue {
+    /// get tag value of `T`
     fn get_value<T: TagValue>(&self, byte_offset: u32) -> Result<T>;
 }
 
+/// set tag value of `T`
 pub trait SetValue {
+    /// set tag value of `T`
     fn set_value<T: TagValue>(&self, byte_offset: u32, value: T) -> Result<()>;
 }
 

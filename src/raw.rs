@@ -98,8 +98,8 @@ impl RawTag {
     }
 
     /// get tag attribute
-    pub fn get_attr(&self, attr: &str, default_value: i32) -> Result<i32> {
-        let attr = CString::new(attr)?;
+    pub fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
+        let attr = CString::new(attr.as_ref().to_owned())?;
         let val =
             unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) };
         if val == i32::MIN {
@@ -110,8 +110,8 @@ impl RawTag {
     }
 
     /// set tag attribute
-    pub fn set_attr(&self, attr: &str, value: i32) -> Result<()> {
-        let attr = CString::new(attr)?;
+    pub fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
+        let attr = CString::new(attr.as_ref().to_owned())?;
         let rc = unsafe { ffi::plc_tag_set_int_attribute(self.tag_id, attr.as_ptr(), value) };
         Status::new(rc).as_result()
     }

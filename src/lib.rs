@@ -2,7 +2,7 @@
 //!
 //! # Features
 //! - synchronous APIs
-//! - asynchronous APIs based on Tokio
+//! - asynchronous APIs based on `Tokio`; blocking operations are posted to `tokio::task::spawn_blocking`; asynchronous read/write based on event callback.
 //! - tag path builder
 //! - UDT support
 //!
@@ -30,6 +30,9 @@
 //! let status = tag.write(timeout);
 //! assert!(status.is_ok());
 //! println!("write done!");
+//!
+//! // tag will be destroyed when out of scope or manually call drop()
+//! drop(tag);
 //! ```
 //!
 //! ## async read/write tag
@@ -75,7 +78,7 @@
 //!
 //!     fn set_value(&self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
 //!         self.v1.set_value(accessor, offset)?;
-//!         self.v1.set_value(accessor, offset + 2)?;
+//!         self.v2.set_value(accessor, offset + 2)?;
 //!         Ok(())
 //!     }
 //! }
@@ -101,6 +104,32 @@
 //!     println!("write done!");
 //! }
 //!
+//! ```
+//!
+//! ## Builder
+//! ```rust,ignore
+//! use plctag::builder::*;
+//!
+//! fn main() {
+//!     let timeout = 100;
+//!     let res = TagBuilder::new()
+//!         .config(|builder| {
+//!             builder
+//!                 .protocol(Protocol::EIP)
+//!                 .gateway("192.168.1.120")
+//!                 .plc(PlcKind::ControlLogix)
+//!                 .name("MyTag1")
+//!                 .element_size(16)
+//!                 .element_count(1)
+//!                 .path("1,0")
+//!                 .read_cache_ms(0);
+//!         })
+//!         .create(timeout);
+//!     assert!(res.is_ok());
+//!     let tag = res.unwrap();
+//!     let status = tag.status();
+//!     assert!(status.is_ok());
+//! }
 //! ```
 //!
 //! # Thread-safety
@@ -139,7 +168,7 @@ pub(crate) mod status;
 pub(crate) mod value;
 
 pub use debug::DebugLevel;
-pub use raw::*;
+pub use raw::RawTag;
 pub use status::Status;
 
 #[cfg(any(feature = "async", feature = "value"))]
@@ -148,18 +177,19 @@ pub use value::{Accessor, Bit, GetValue, SetValue, TagValue};
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub mod prelude {
-    pub use crate::raw::*;
-    pub use crate::DebugLevel;
+    pub use crate::builder::{PathBuilder, TagBuilder};
     #[cfg(any(feature = "async", feature = "value"))]
     pub use crate::{Accessor, Bit, GetValue, SetValue, TagValue};
-    pub use crate::{Result, Status};
+    pub use crate::{DebugLevel, RawTag, Result, Status};
 }
 
+/// handle inner log of `libplctag`
 pub mod logging {
     use crate::plc;
     use std::ffi::CStr;
     use std::os::raw::c_char;
 
+    #[doc(hidden)]
     #[no_mangle]
     unsafe extern "C" fn log_route(tag_id: i32, level: i32, message: *const c_char) {
         match level {
@@ -192,6 +222,9 @@ pub mod logging {
         }
     }
 
+    /// by default, `libplctag` logs inner messages to std output.
+    /// you can register your own logger by calling [plc::register_logger](../plc/fn.register_logger.html).
+    /// this method will register a logger for you and route log messages to logging crate`log`.
     pub fn log_adapt() {
         unsafe {
             plc::unregister_logger();

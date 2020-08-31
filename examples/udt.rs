@@ -22,7 +22,8 @@ impl TagValue for MyUDT {
 
 fn main() {
     let timeout = 100; //ms
-    let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag2&elem_count=2&elem_size=16"; // YOUR TAG DEFINITION
+                       // YOUR TAG DEFINITION
+    let path = "protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag2&elem_count=2&elem_size=16";
     let tag = RawTag::new(path, timeout).unwrap();
 
     //read tag
