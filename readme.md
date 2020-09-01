@@ -14,7 +14,7 @@ a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust
 ### read/write tag
 
  ```rust
- use plctag::{RawTag, TagValue, GetValue, SetValue};
+ use plctag::{Accessor, RawTag};
  let timeout = 100;//ms
  let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
  let tag = RawTag::new(path, timeout).unwrap();
@@ -63,7 +63,7 @@ a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust
 read/write UDT
 
  ```rust
- use plctag::{Accessor, TagValue, RawTag, GetValue, SetValue, Result};
+use plctag::{Accessor, RawTag, Result, TagValue};
 
  // define your UDT
  #[derive(Default, Debug)]
@@ -72,15 +72,15 @@ read/write UDT
      v2:u16,
  }
  impl TagValue for MyUDT {
-     fn get_value(&mut self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
-         self.v1.get_value(accessor, offset)?;
-         self.v2.get_value(accessor, offset + 2)?;
+     fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
+         self.v1.get_value(tag, offset)?;
+         self.v2.get_value(tag, offset + 2)?;
          Ok(())
      }
 
-     fn set_value(&self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
-         self.v1.set_value(accessor, offset)?;
-         self.v2.set_value(accessor, offset + 2)?;
+     fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()>{
+         self.v1.set_value(tag, offset)?;
+         self.v2.set_value(tag, offset + 2)?;
          Ok(())
      }
  }
@@ -108,6 +108,9 @@ read/write UDT
  }
 
  ```
+
+Note:
+Do not perform expensive operations when you implements `TagValue`.
 
 ## Thread-safety
 
