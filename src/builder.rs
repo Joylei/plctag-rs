@@ -1,3 +1,5 @@
+//! builders for tag path and tag
+
 use crate::{DebugLevel, Result};
 use std::fmt;
 

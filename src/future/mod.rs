@@ -1,3 +1,5 @@
+//! async operations
+
 #![cfg(feature = "async")]
 
 mod tag;

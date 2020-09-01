@@ -8,6 +8,7 @@ pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
 #[cfg(feature = "async")]
 pub const ERR_TASK_FAILED: i32 = -123456789;
 
+/// plc tag error code representations
 #[derive(Debug, Copy, Clone)]
 pub enum Status {
     /// PLCTAG_STATUS_OK = 0

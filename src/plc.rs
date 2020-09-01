@@ -1,3 +1,5 @@
+//! library methods of `libplctag`
+
 use crate::ffi;
 use crate::status;
 use crate::{DebugLevel, Result, Status};
@@ -54,6 +56,9 @@ pub fn set_int_attr(attr: impl AsRef<str>, value: i32) -> Result<()> {
 }
 
 /// get debug level of `libplctag`
+///
+/// #Note
+/// `libplctag` will print logs to stdout even if you register your own logger by `plc::register_logger`
 #[inline]
 pub fn get_debug_level() -> DebugLevel {
     let level = get_int_attr("debug", 0)
@@ -63,6 +68,9 @@ pub fn get_debug_level() -> DebugLevel {
 }
 
 /// set debug level of `libplctag`
+///
+/// #Note
+/// `libplctag` will print logs to stdout even if you register your own logger by `plc::register_logger`
 #[inline]
 pub fn set_debug_level(debug: DebugLevel) {
     let level: u8 = debug.into();
@@ -70,6 +78,9 @@ pub fn set_debug_level(debug: DebugLevel) {
 }
 
 /// register a custom logger to receive inner message of `libplctag`
+///
+/// # Note
+/// `libplctag` will print logs to stdout even if you register your own logger by `plc::register_logger`
 pub use ffi::plc_tag_register_logger as register_logger;
 
 /// unregister your custom logger from `libplctag`
@@ -78,7 +89,7 @@ pub fn unregister_logger() {
     unsafe { ffi::plc_tag_unregister_logger() };
 }
 
-///Shutting Down the Library of `libplctag`.
+/// Shutting Down the Library of `libplctag`.
 /// Normally you do not need to call this method, `libplctag` takes care of it in most cases.
 #[inline]
 pub fn shutdown() {

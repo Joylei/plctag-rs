@@ -1,3 +1,5 @@
+//! error representations
+
 use crate::Status;
 use std::{error::Error as StdError, ffi::NulError, fmt, num::ParseIntError};
 
