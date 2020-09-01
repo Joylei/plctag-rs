@@ -1,4 +1,4 @@
-use plctag::{Accessor, GetValue, RawTag, Result, SetValue, TagValue};
+use plctag::{Accessor, RawTag, Result, TagValue};
 
 // define your UDT
 #[derive(Default, Debug)]
@@ -7,15 +7,15 @@ struct MyUDT {
     v2: u16,
 }
 impl TagValue for MyUDT {
-    fn get_value(&mut self, accessor: &dyn Accessor, offset: u32) -> Result<()> {
-        self.v1.get_value(accessor, offset)?;
-        self.v2.get_value(accessor, offset + 2)?;
+    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
+        self.v1.get_value(tag, offset)?;
+        self.v2.get_value(tag, offset + 2)?;
         Ok(())
     }
 
-    fn set_value(&self, accessor: &dyn Accessor, offset: u32) -> Result<()> {
-        self.v1.set_value(accessor, offset)?;
-        self.v2.set_value(accessor, offset + 2)?;
+    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        self.v1.set_value(tag, offset)?;
+        self.v2.set_value(tag, offset + 2)?;
         Ok(())
     }
 }

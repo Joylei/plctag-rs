@@ -2,11 +2,11 @@ use crate::ffi;
 use crate::{Result, Status};
 
 use std::ffi::CString;
-
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 /// wrapper of tag model based on `libplctag`
+#[derive(Debug)]
 pub struct RawTag {
     tag_id: i32,
 }
@@ -39,26 +39,30 @@ impl RawTag {
     ///
     /// The id is not a resource handle.
     /// The id might be reused by `libplctag`. So if you use it somewhere, please take care.
+    #[inline]
     pub fn id(&self) -> i32 {
         self.tag_id
     }
 
     /// perform write operation.
-    /// if timeout is 0, will not block; otherwise will block
+    /// - blocking read if timeout > 0
+    /// - non-blocking read if timeout = 0
     #[inline]
     pub fn read(&self, timeout: u32) -> Status {
         let rc = unsafe { ffi::plc_tag_read(self.tag_id, timeout as i32) };
         rc.into()
     }
 
-    /// perform read operation
+    /// perform write operation
+    /// - blocking write if timeout > 0
+    /// - non-blocking write if timeout = 0
     #[inline]
     pub fn write(&self, timeout: u32) -> Status {
         let rc = unsafe { ffi::plc_tag_write(self.tag_id, timeout as i32) };
         rc.into()
     }
 
-    /// wait until not pending
+    /// wait until not pending, blocking
     #[inline]
     pub fn wait(&self) -> Status {
         loop {
@@ -70,7 +74,7 @@ impl RawTag {
         }
     }
 
-    /// wait until not pending
+    /// wait until not pending, blocking
     #[inline]
     pub fn wait_timeout(&self, timeout: u32) -> Status {
         let start = Instant::now();
@@ -87,16 +91,19 @@ impl RawTag {
     }
 
     /// element size
+    #[inline]
     pub fn element_size(&self) -> Result<i32> {
         self.get_attr("elem_size", 0)
     }
 
     /// element count
+    #[inline]
     pub fn element_count(&self) -> Result<i32> {
         self.get_attr("elem_count", 0)
     }
 
     /// get tag attribute
+    #[inline]
     pub fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
         let attr = CString::new(attr.as_ref())?;
         let val =
@@ -109,6 +116,7 @@ impl RawTag {
     }
 
     /// set tag attribute
+    #[inline]
     pub fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
         let attr = CString::new(attr.as_ref())?;
         let rc = unsafe { ffi::plc_tag_set_int_attribute(self.tag_id, attr.as_ptr(), value) };
@@ -324,18 +332,26 @@ impl RawTag {
         cb: Option<unsafe extern "C" fn(tag_id: i32, event: i32, status: i32)>,
     ) -> Status {
         //unregister first
-        let mut rc = ffi::plc_tag_unregister_callback(self.tag_id);
-        info!("tag {} - unregister callback: {}", self.tag_id, rc);
-        rc = ffi::plc_tag_register_callback(self.tag_id, cb);
+        let _ = ffi::plc_tag_unregister_callback(self.tag_id);
+        let rc = ffi::plc_tag_register_callback(self.tag_id, cb);
         rc.into()
     }
 
+    #[inline]
     pub fn unregister_callback(&self) -> Status {
         let rc = unsafe { ffi::plc_tag_unregister_callback(self.tag_id) };
         rc.into()
     }
 
-    /// abort the pending operation
+    /// Abort the pending operation.
+    /// The operation is only needed when you write async code.
+    /// The library will take care it for you:
+    /// - if you use [`future::AsyncTag`]
+    /// - if you use [`RawTag`] with blocking read/write (timeout>0)
+    ///
+    /// For non-blocking read/write (timeout=0), it's your responsibility to call this method to cancel the pending
+    /// operation when timeout or other necessary situations.
+    #[inline]
     pub fn abort(&self) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_abort(self.tag_id) };
         Status::new(rc).into_result()
@@ -343,6 +359,7 @@ impl RawTag {
 }
 
 impl Drop for RawTag {
+    #[inline]
     fn drop(&mut self) {
         unsafe {
             //let _ = self.abort();

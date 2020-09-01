@@ -9,7 +9,7 @@
 //! # Examples
 //! ## read/write tag
 //! ```rust,ignore
-//! use plctag::{RawTag, TagValue, GetValue, SetValue};
+//! use plctag::{Accessor, RawTag};
 //! let timeout = 100;//ms
 //!
 //! // YOUR TAG DEFINITION
@@ -61,7 +61,7 @@
 //! ## UDT
 //! read/write UDT
 //! ```rust, ignore
-//! use plctag::{Accessor, TagValue, RawTag, GetValue, SetValue, Result};
+//! use plctag::{Accessor, RawTag, Result, TagValue};
 //!
 //! // define your UDT
 //! #[derive(Default, Debug)]
@@ -70,15 +70,15 @@
 //!     v2:u16,
 //! }
 //! impl TagValue for MyUDT {
-//!     fn get_value(&mut self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
-//!         self.v1.get_value(accessor, offset)?;
-//!         self.v2.get_value(accessor, offset + 2)?;
+//!     fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
+//!         self.v1.get_value(tag, offset)?;
+//!         self.v2.get_value(tag, offset + 2)?;
 //!         Ok(())
 //!     }
 //!
-//!     fn set_value(&self, accessor: &dyn Accessor, offset: u32) -> Result<()>{
-//!         self.v1.set_value(accessor, offset)?;
-//!         self.v2.set_value(accessor, offset + 2)?;
+//!     fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()>{
+//!         self.v1.set_value(tag, offset)?;
+//!         self.v2.set_value(tag, offset + 2)?;
 //!         Ok(())
 //!     }
 //! }
@@ -105,6 +105,9 @@
 //! }
 //!
 //! ```
+//!
+//! Note:
+//! Do not perform expensive operations when you implements `TagValue`.
 //!
 //! ## Builder
 //! ```rust,ignore
@@ -176,7 +179,7 @@ pub(crate) mod ffi;
 pub mod future;
 pub mod plc;
 pub(crate) mod raw;
-pub(crate) mod status;
+pub mod status;
 #[cfg(any(feature = "async", feature = "value"))]
 pub(crate) mod value;
 
@@ -185,18 +188,17 @@ pub use raw::RawTag;
 pub use status::Status;
 
 #[cfg(any(feature = "async", feature = "value"))]
-pub use value::{Accessor, Bit, GetValue, SetValue, TagValue};
+pub use value::{Accessor, Bit, TagValue};
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub mod prelude {
     pub use crate::builder::{PathBuilder, TagBuilder};
     #[cfg(any(feature = "async", feature = "value"))]
-    pub use crate::{Accessor, Bit, GetValue, SetValue, TagValue};
-    pub use crate::{DebugLevel, RawTag, Result, Status};
+    pub use crate::{Accessor, Bit, DebugLevel, RawTag, Result, Status, TagValue};
 }
 
-/// handle internal logs of `libplctag`
+/// handle internal log messages of `libplctag`
 pub mod logging {
     use crate::plc;
     use crate::status;
@@ -217,12 +219,12 @@ pub mod logging {
         }
     }
 
-    /// by default, `libplctag` logs internal messages to std output.
+    /// by default, `libplctag` logs internal messages to stdout, if you set debug level other than none.
     /// you can register your own logger by calling [plc::register_logger](../plc/fn.register_logger.html).
-    /// For convenient, this method will register a logger for you and route log messages to crate`log`.
+    /// For convenient, this method will register a logger for you and will forward internal log messages to crate`log`.
     ///
     /// # Note
-    /// `libplctag` will print logs to stdout even if you register your own logger by `plc::register_logger`
+    /// `libplctag` will print log messages to stdout even if you register your own logger by `plc::register_logger`.
     ///
     /// # Examples
     /// ```rust,ignore

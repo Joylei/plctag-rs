@@ -3,6 +3,7 @@ use std::ffi::CStr;
 
 pub const PLCTAG_STATUS_OK: i32 = ffi::PLCTAG_STATUS_OK as i32;
 pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
+pub use ffi::PLCTAG_ERR_TIMEOUT;
 
 /// custom error for async task failure
 #[cfg(feature = "async")]
@@ -52,7 +53,7 @@ impl Status {
             _ => false,
         }
     }
-
+    #[inline]
     pub fn is_timeout(&self) -> bool {
         match self {
             Status::Err(ref rc) => *rc == ffi::PLCTAG_ERR_TIMEOUT,

@@ -1,9 +1,8 @@
-use plctag::{GetValue, RawTag, SetValue, TagValue};
+use plctag::{Accessor, RawTag};
 
 fn main() {
     let timeout = 100; //ms
-                       // YOUR TAG DEFINITION
-    let path = "protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
+    let path = "protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16"; // YOUR TAG DEFINITION
     let tag = RawTag::new(path, timeout).unwrap();
     //read tag
     let status = tag.read(timeout);

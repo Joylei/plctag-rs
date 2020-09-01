@@ -1,7 +1,7 @@
 #![cfg(feature = "async")]
 
 use super::{asyncify, get_status};
-use crate::{RawTag, Result, Status, TagValue};
+use crate::{error::Error, RawTag, Result, Status, TagValue};
 use std::cell::UnsafeCell;
 use std::future::Future;
 use std::pin::Pin;
@@ -11,6 +11,7 @@ use std::time::Duration;
 use tokio::time;
 
 #[doc(hidden)]
+#[derive(Debug)]
 pub(crate) struct Inner {
     raw: RawTag,
     /// event need to be mutable, but `Arc` wrapped `Inner` is not mutable, wrap it with `UnsafeCell`
@@ -44,6 +45,7 @@ unsafe impl Send for Inner {}
 /// });
 ///
 /// ```
+#[derive(Debug)]
 pub struct AsyncTag {
     inner: Arc<Inner>,
 }
@@ -60,6 +62,21 @@ impl AsyncTag {
             raw,
             event: UnsafeCell::new(event::Event::new()),
         });
+        Self::from_inner(inner).await
+    }
+
+    /// create new instance of `AsyncTag` from `RawTag`
+    pub async fn from_raw(raw: RawTag) -> std::result::Result<Self, (RawTag, Error)> {
+        let inner = Arc::new(Inner {
+            raw,
+            event: UnsafeCell::new(event::Event::new()),
+        });
+        let inner2 = Arc::clone(&inner);
+        let res = Self::from_inner(inner).await;
+        res.or_else(|e| Err((Arc::try_unwrap(inner2).unwrap().raw, e)))
+    }
+
+    async fn from_inner(inner: Arc<Inner>) -> Result<Self> {
         // no efficient way to know when tag will be created, constantly poll status
         loop {
             let inner2 = Arc::clone(&inner);
@@ -83,11 +100,13 @@ impl AsyncTag {
     ///
     /// The id is not a resource handle.
     /// The id might be reused by `libplctag`. So if you use it somewhere, please take care.
+    #[inline]
     pub fn id(&self) -> i32 {
         self.inner.raw.id()
     }
 
     /// poll tag status
+    #[inline]
     pub async fn status(&self) -> Status {
         let inner = Arc::clone(&self.inner);
         let status = get_status(move || inner.raw.status()).await;
@@ -95,33 +114,42 @@ impl AsyncTag {
     }
 
     /// value size of bytes
+    #[inline]
     pub async fn size(&self) -> Result<u32> {
         let inner = Arc::clone(&self.inner);
         asyncify(move || inner.raw.size()).await
     }
 
     /// element size
+    #[inline]
     pub async fn element_size(&self) -> Result<i32> {
         self.get_attr("elem_size", 0).await
     }
 
     /// element count
+    #[inline]
     pub async fn element_count(&self) -> Result<i32> {
         self.get_attr("elem_count", 0).await
     }
 
+    // get value of tag attribute
+    #[inline]
     pub async fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
         let inner = Arc::clone(&self.inner);
         let attr = attr.as_ref().to_owned();
         asyncify(move || inner.raw.get_attr(attr, default_value)).await
     }
 
+    // set value of tag attribute
+    #[inline]
     pub async fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
         let inner = Arc::clone(&self.inner);
         let attr = attr.as_ref().to_owned();
         asyncify(move || inner.raw.set_attr(attr, value)).await
     }
 
+    /// read from plc and get the value
+    #[inline]
     pub async fn read_and_get<T: TagValue + Send + 'static>(&self, offset: u32) -> Result<T> {
         let status = self.read().await;
         if !status.is_ok() {
@@ -129,10 +157,13 @@ impl AsyncTag {
         }
         self.get_value(offset).await
     }
-    pub async fn set_and_write<T: TagValue + Send + 'static>(
+
+    /// set value for tag and write to plc
+    #[inline]
+    pub async fn set_and_write(
         &self,
         offset: u32,
-        value: T,
+        value: impl TagValue + Send + 'static,
     ) -> Result<()> {
         self.set_value(offset, value).await?;
         let status = self.write().await;
@@ -144,6 +175,7 @@ impl AsyncTag {
     }
 
     /// read the value from plc
+    #[inline]
     pub async fn read(&self) -> Status {
         let inner = Arc::clone(&self.inner);
         let status = get_status(move || inner.raw.read(0)).await;
@@ -158,6 +190,7 @@ impl AsyncTag {
     }
 
     /// write the value to plc
+    #[inline]
     pub async fn write(&self) -> Status {
         let inner = Arc::clone(&self.inner);
         let status = get_status(move || inner.raw.write(0)).await;
@@ -171,6 +204,7 @@ impl AsyncTag {
     }
 
     /// get value from tag
+    #[inline]
     pub async fn get_value<T: TagValue + Send + 'static>(&self, offset: u32) -> Result<T> {
         let inner = Arc::clone(&self.inner);
         asyncify(move || {
@@ -182,20 +216,23 @@ impl AsyncTag {
     }
 
     /// set value for the tag
-    pub async fn set_value<T: TagValue + Send + 'static>(
+    #[inline]
+    pub async fn set_value(
         &self,
         offset: u32,
-        value: T,
+        value: impl TagValue + Send + 'static,
     ) -> Result<()> {
         let inner = Arc::clone(&self.inner);
         asyncify(move || value.set_value(&inner.raw, offset)).await
     }
 
+    #[inline]
     pub async fn get_bytes(&self, buf: &'static mut [u8]) -> Result<usize> {
         let inner = Arc::clone(&self.inner);
         asyncify(move || inner.raw.get_bytes(buf)).await
     }
 
+    #[inline]
     pub async fn set_bytes(&self, buf: &'static [u8]) -> Result<usize> {
         let inner = Arc::clone(&self.inner);
         asyncify(move || inner.raw.set_bytes(buf)).await
@@ -203,13 +240,14 @@ impl AsyncTag {
 }
 
 impl Drop for AsyncTag {
+    #[inline]
     fn drop(&mut self) {
         event::unregister(self.inner.raw.id());
     }
 }
 
 /// wait for read/write event call back.
-/// automatically abort the pending operation when dropped
+/// automatically abort the pending operation when dropped if any
 #[doc(hidden)]
 struct Waiter {
     inner: Arc<Inner>,
@@ -365,6 +403,7 @@ mod event {
     }
 
     #[doc(hidden)]
+    #[derive(Debug)]
     pub(crate) struct Event {
         waker: AtomicWaker,
         args: parking_lot::Mutex<EventArgs>,
