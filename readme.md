@@ -19,7 +19,7 @@ Add `plctag` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag="*"
+plctag= { git="http://git.dotone.top/wowin/plctag-rs.git"}
 ```
 
 You're OK to build your project.

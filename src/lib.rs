@@ -16,7 +16,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! plctag="*"
+//! plctag= { git="http://git.dotone.top/wowin/plctag-rs.git"}
 //! ```
 //!
 //! You're OK to build your project.
