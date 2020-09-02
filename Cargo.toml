@@ -18,7 +18,7 @@ value=["paste"]
 log="*"
 parking_lot={version="*", optional=true}
 futures ={version="*", optional=true}
-tokio= {version="0.2.22", default-features=false, features=["rt-core", "blocking", "time"], optional=true}
+tokio= {version="0.2.*", default-features=false, features=["rt-core", "blocking", "time"], optional=true}
 paste={version="*", optional=true}
 lazy_static={version="*", optional=true}
 

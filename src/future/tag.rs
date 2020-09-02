@@ -14,7 +14,6 @@ use tokio::time;
 #[derive(Debug)]
 pub(crate) struct Inner {
     raw: RawTag,
-    /// event need to be mutable, but `Arc` wrapped `Inner` is not mutable, wrap it with `UnsafeCell`
     event: UnsafeCell<event::Event>,
 }
 
@@ -350,6 +349,7 @@ mod event {
     pub(crate) fn register(inner: Arc<Inner>) {
         let mut data = TAGS.lock();
         let map = &mut *data;
+        debug_assert!(!map.contains_key(&inner.raw.id()));
         let status = unsafe { inner.raw.register_callback(Some(on_tag_event)) };
         debug_assert!(status.is_ok());
         map.insert(inner.raw.id(), TagHolder(inner));

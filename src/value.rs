@@ -156,15 +156,17 @@ impl<T: TagValue> TagValue for Option<T> {
     }
 }
 
-/// get tag value of `T`
+/// generic getter/setter based on trait `TagValue`
 pub trait Accessor {
-    /// get tag value of `T`
+    /// get tag value of `T` that implements `TagValue`
     fn get_value<T: TagValue>(&self, byte_offset: u32) -> Result<T>;
 
+    /// set tag value that implements `TagValue`
     fn set_value(&self, byte_offset: u32, value: impl TagValue) -> Result<()>;
 }
 
 impl Accessor for RawTag {
+    /// get tag value of `T` that implements `TagValue`
     #[inline]
     fn get_value<T: TagValue>(&self, byte_offset: u32) -> Result<T> {
         let mut v = Default::default();
@@ -172,6 +174,7 @@ impl Accessor for RawTag {
         Ok(v)
     }
 
+    /// set tag value that implements `TagValue`
     #[inline]
     fn set_value(&self, byte_offset: u32, value: impl TagValue) -> Result<()> {
         TagValue::set_value(&value, self, byte_offset)

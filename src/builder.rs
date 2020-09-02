@@ -4,6 +4,31 @@ use crate::{DebugLevel, Result};
 use std::fmt;
 
 /// builder to build tag full path
+///
+/// # Examples
+/// ```rust,ignore
+/// use plctag::builder::*;
+/// use plctag::RawTag;
+///
+/// fn main() {
+///     let timeout = 100;
+///     let path = PathBuilder::default()
+///         .protocol(Protocol::EIP)
+///         .gateway("192.168.1.120")
+///         .plc(PlcKind::ControlLogix)
+///         .name("MyTag1")
+///         .element_size(16)
+///         .element_count(1)
+///         .path("1,0")
+///         .read_cache_ms(0)
+///         .build()
+///         .unwrap();
+///     let tag = RawTag::new(path, timeout).unwrap();
+///     let status = tag.status();
+///     assert!(status.is_ok());
+/// }
+///
+/// ```
 #[derive(Default, Debug)]
 pub struct PathBuilder {
     protocol: Option<Protocol>,
@@ -19,11 +44,6 @@ pub struct PathBuilder {
 }
 
 impl PathBuilder {
-    #[inline]
-    pub fn new() -> Self {
-        Default::default()
-    }
-
     /// generic attribute.
     /// defining the current debugging level.
     /// please use [`plc::set_debug_level`](../plc/fn.set_debug_level.html) instead.
@@ -301,37 +321,12 @@ impl fmt::Display for PlcKind {
     }
 }
 
-/// builder to build `RawTag`
-pub struct TagBuilder {
-    inner: PathBuilder,
-}
-
-use crate::RawTag;
-
-impl TagBuilder {
-    pub fn new() -> Self {
-        Self {
-            inner: Default::default(),
-        }
-    }
-
-    pub fn config<F: FnMut(&mut PathBuilder)>(&mut self, mut f: F) -> &Self {
-        f(&mut self.inner);
-        self
-    }
-
-    pub fn create(&self, timeout: u32) -> Result<RawTag> {
-        let path = self.inner.build()?;
-        RawTag::new(path, timeout)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
     fn test_eip_builder() {
-        let path = PathBuilder::new()
+        let path = PathBuilder::default()
             .protocol(Protocol::EIP)
             .gateway("192.168.1.120")
             .plc(PlcKind::ControlLogix)
@@ -347,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_modbus_builder() {
-        let path = PathBuilder::new()
+        let path = PathBuilder::default()
             .protocol(Protocol::ModBus)
             .gateway("192.168.1.120:502")
             .path("0")

@@ -9,6 +9,25 @@ a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust
 - tag path builder
 - UDT support
 
+## How to use
+
+Download latest binary release of [libplctag](https://github.com/libplctag/libplctag/releases) and extract it to somewhere of your computer.
+
+Set environment variable `LIBPLCTAG_PATH` to the directory of extracted binaries.
+
+Add `plctag` to your Cargo.toml
+
+```toml
+[dependencies]
+plctag="*"
+```
+
+You're OK to build your project.
+
+```shell
+cargo build
+```
+
 ## Examples
 
 ### read/write tag
@@ -112,18 +131,60 @@ use plctag::{Accessor, RawTag, Result, TagValue};
 Note:
 Do not perform expensive operations when you implements `TagValue`.
 
+### Path Builder
+
+```rust
+use plctag::builder::*;
+use plctag::RawTag;
+
+fn main() {
+    let timeout = 100;
+    let path = PathBuilder::default()
+        .protocol(Protocol::EIP)
+        .gateway("192.168.1.120")
+        .plc(PlcKind::ControlLogix)
+        .name("MyTag1")
+        .element_size(16)
+        .element_count(1)
+        .path("1,0")
+        .read_cache_ms(0)
+        .build()
+        .unwrap();
+    let tag = RawTag::new(path, timeout).unwrap();
+    let status = tag.status();
+    assert!(status.is_ok());
+}
+
+```
+
+### Logging adapter for `libplctag`
+
+```rust
+use plctag::logging::log_adapt;
+use plctag::plc::set_debug_level;
+use plctag::DebugLevel;
+
+log_adapt(); //register logger
+set_debug_level(DebugLevel::Info); // set debug level
+
+// now, you can receive log messages by any of logging implementations of crate `log`
+
+```
+
 ## Thread-safety
 
- Operations in `libplctag` are guarded with mutex, so they are somewhat thread safe.
- But imagine that one thread sets a value for a tag, another thread can set a different value for the same
- tag once it acquires the mutex lock before the previous thread perform other operations on the tag.
- It is that you still need some sync mechanism to make sure your sequence of operations
- are atomic.
+Operations are not thread-safe in this library, please use `std::sync::Mutex` or something similar to enforce thread-safety.
 
-## Test
+## Build & Test
+
+Please refer to `How to use` to setup build environment.
 
 Because mutithread will cause troubles, you need to run tests with:
 
 ```shell
 cargo test -- --test-threads=1
 ```
+
+## License
+
+MIT

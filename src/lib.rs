@@ -6,6 +6,26 @@
 //! - tag path builder
 //! - UDT support
 //!
+//! ## How to use
+//!
+//! Download latest binary release of [libplctag](https://github.com/libplctag/libplctag/releases) and extract it to somewhere of your computer.
+//!
+//! Set environment variable `LIBPLCTAG_PATH` to the directory of extracted binaries.
+//!
+//! Add `plctag` to your Cargo.toml
+//!
+//! ```toml
+//! [dependencies]
+//! plctag="*"
+//! ```
+//!
+//! You're OK to build your project.
+//!
+//! ```shell
+//! cargo build
+//! ```
+//!
+//!
 //! # Examples
 //! ## read/write tag
 //! ```rust,ignore
@@ -112,27 +132,26 @@
 //! ## Builder
 //! ```rust,ignore
 //! use plctag::builder::*;
+//! use plctag::RawTag;
 //!
 //! fn main() {
 //!     let timeout = 100;
-//!     let res = TagBuilder::new()
-//!         .config(|builder| {
-//!             builder
-//!                 .protocol(Protocol::EIP)
-//!                 .gateway("192.168.1.120")
-//!                 .plc(PlcKind::ControlLogix)
-//!                 .name("MyTag1")
-//!                 .element_size(16)
-//!                 .element_count(1)
-//!                 .path("1,0")
-//!                 .read_cache_ms(0);
-//!         })
-//!         .create(timeout);
-//!     assert!(res.is_ok());
-//!     let tag = res.unwrap();
+//!     let path = PathBuilder::default()
+//!         .protocol(Protocol::EIP)
+//!         .gateway("192.168.1.120")
+//!         .plc(PlcKind::ControlLogix)
+//!         .name("MyTag1")
+//!         .element_size(16)
+//!         .element_count(1)
+//!         .path("1,0")
+//!         .read_cache_ms(0)
+//!         .build()
+//!         .unwrap();
+//!     let tag = RawTag::new(path, timeout).unwrap();
 //!     let status = tag.status();
 //!     assert!(status.is_ok());
 //! }
+//!
 //! ```
 //!
 //! ## Logging adapter for `libplctag`
@@ -149,12 +168,7 @@
 //! ```
 //!
 //! # Thread-safety
-//! Operations in `libplctag` are guarded with mutex, so they are somewhat thread safe, also most operations
-//!  will block current thread for a short while.
-//! But imagine that one thread sets a value for a tag, another thread can set a different value for the same
-//! tag once it acquires the mutex lock before the previous thread perform other operations on the tag.
-//! It is that you still need some sync mechanism to make sure your sequence of operations
-//! are atomic.
+//! Operations are not thread-safe in this library, please use `std::sync::Mutex` or something similar to enforce thread-safety.
 //!
 
 #[cfg(feature = "async")]
@@ -193,7 +207,6 @@ pub use value::{Accessor, Bit, TagValue};
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub mod prelude {
-    pub use crate::builder::{PathBuilder, TagBuilder};
     #[cfg(any(feature = "async", feature = "value"))]
     pub use crate::{Accessor, Bit, DebugLevel, RawTag, Result, Status, TagValue};
 }
