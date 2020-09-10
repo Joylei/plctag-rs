@@ -10,9 +10,10 @@ edition = "2018"
 rustc-wrapper="sccache"
 
 [features]
-default=["async", "value"]
+default=["async", "value", "controller"]
 async=["parking_lot", "futures", "tokio", "lazy_static", "paste"]
 value=["paste"]
+controller=["parking_lot"]
 
 [dependencies]
 log="*"

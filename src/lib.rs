@@ -178,7 +178,7 @@ extern crate lazy_static;
 extern crate futures;
 #[macro_use]
 extern crate log;
-#[cfg(feature = "async")]
+#[cfg(any(feature = "async", feature = "controller"))]
 extern crate parking_lot;
 #[cfg(any(feature = "async", feature = "value"))]
 extern crate paste;
@@ -186,6 +186,8 @@ extern crate paste;
 extern crate tokio;
 
 pub mod builder;
+#[cfg(feature = "controller")]
+pub mod controller;
 pub(crate) mod debug;
 pub mod error;
 pub(crate) mod ffi;
