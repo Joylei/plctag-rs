@@ -67,7 +67,7 @@ impl Operation for PingPong {
 }
 
 fn main() {
-    let config = ControllerOptions::default().host(PLC_HOST);
+    let config = ControllerOptions::new(PLC_HOST);
     let controller = Arc::new(Controller::from(config));
     let controller1 = Arc::clone(&controller);
 
