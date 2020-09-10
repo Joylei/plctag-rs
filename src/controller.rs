@@ -150,7 +150,7 @@ impl<'a> Processor<'a> {
             if let Err(e) = res {
                 error!(
                     "controller {}: failed to run operation {}: {}",
-                    self.controller.host,
+                    self.controller.host(),
                     op.id(),
                     e
                 );
@@ -184,21 +184,22 @@ pub struct ControllerOptions {
     create_timeout: Duration,
     read_timeout: Duration,
     write_timeout: Duration,
+    poll_interval: Duration,
 }
 
-impl Default for ControllerOptions {
-    fn default() -> Self {
+impl ControllerOptions {
+    #[inline]
+    pub fn new(host: impl AsRef<str>) -> Self {
         Self {
-            host: String::new(),
+            host: host.as_ref().to_owned(),
             scan_interval: Duration::from_millis(20),
             create_timeout: Duration::from_millis(300),
             read_timeout: Duration::from_millis(200),
             write_timeout: Duration::from_millis(200),
+            poll_interval: Duration::from_millis(1),
         }
     }
-}
 
-impl ControllerOptions {
     #[inline]
     pub fn host(mut self, host: impl AsRef<str>) -> Self {
         self.host = host.as_ref().to_owned();
@@ -224,39 +225,42 @@ impl ControllerOptions {
         self.write_timeout = write_timeout;
         self
     }
+
+    #[inline]
+    pub fn poll_interval(mut self, poll_interval: Duration) -> Self {
+        self.poll_interval = poll_interval;
+        self
+    }
 }
 
 /// `Controller` will take care tags's read and write.
 /// You only need to post `Operation`s to `Controller`.
 pub struct Controller {
-    host: String,
     tags: Arc<Mutex<HashMap<String, Arc<TagEntry>>>>,
     messages: Arc<Mutex<HashMap<usize, Box<dyn Operation + Send>>>>,
-    scan_interval: Duration,
-    create_timeout: Duration,
-    read_timeout: Duration,
-    write_timeout: Duration,
+    opts: ControllerOptions,
 }
 
 impl From<ControllerOptions> for Controller {
     #[inline]
     fn from(opts: ControllerOptions) -> Self {
         Self {
-            host: opts.host,
             tags: Arc::new(Mutex::new(HashMap::new())),
             messages: Arc::new(Mutex::new(HashMap::new())),
-            scan_interval: opts.scan_interval,
-            create_timeout: opts.create_timeout,
-            read_timeout: opts.read_timeout,
-            write_timeout: opts.write_timeout,
+            opts,
         }
     }
 }
 
 impl Controller {
     #[inline]
+    pub fn host(&self) -> &str {
+        &self.opts.host
+    }
+
+    #[inline]
     pub fn new(host: impl AsRef<str>) -> Self {
-        let opts = ControllerOptions::default().host(host);
+        let opts = ControllerOptions::new(host);
         Self::from(opts)
     }
 
@@ -277,7 +281,7 @@ impl Controller {
                 Err(e) => {
                     error!(
                         "controller {} - failed to create tag {}: {}",
-                        self.host, &key1, e
+                        self.opts.host, &key1, e
                     );
                     return None;
                 }
@@ -291,7 +295,7 @@ impl Controller {
     pub fn scan(&self) {
         loop {
             self.scan_once();
-            thread::sleep(self.scan_interval)
+            thread::sleep(self.opts.scan_interval)
         }
     }
 
@@ -299,7 +303,7 @@ impl Controller {
         //check tag ready
         let all_tags = self.check_ready_tags();
         if all_tags.len() == 0 {
-            trace!("no ready tags");
+            trace!("controller {} - no ready tags", &self.opts.host);
             return;
         }
         let ready_tags = self.read_all(all_tags);
@@ -344,7 +348,7 @@ impl Controller {
         let mut to_remove = vec![];
         let mut ready_tags: HashMap<String, Arc<TagEntry>> = HashMap::new();
         for (key, tag) in tags {
-            match tag.check_ready(self.create_timeout) {
+            match tag.check_ready(self.opts.create_timeout) {
                 Ok(ready) => {
                     if ready {
                         ready_tags.insert(key, tag);
@@ -353,7 +357,7 @@ impl Controller {
                 Err(e) => {
                     error!(
                         "controller {} - failed to create tag {}: {}",
-                        self.host,
+                        self.opts.host,
                         tag.name(),
                         e
                     );
@@ -377,7 +381,7 @@ impl Controller {
         let now = Instant::now();
         let mut first = true;
         loop {
-            if now.elapsed() > self.write_timeout {
+            if now.elapsed() > self.opts.write_timeout {
                 break;
             }
             remaining = remaining
@@ -395,7 +399,7 @@ impl Controller {
                         _ => {
                             error!(
                                 "controller {} - failed to read tag {}: {}",
-                                self.host,
+                                self.opts.host,
                                 tag.name(),
                                 status.decode()
                             );
@@ -416,7 +420,7 @@ impl Controller {
         for tag in remaining.values() {
             error!(
                 "controller {} - timeout to write tag {}",
-                self.host,
+                self.opts.host,
                 tag.name()
             );
             let _ = tag.abort();
@@ -432,7 +436,7 @@ impl Controller {
         let mut first = true;
         let mut res: Vec<Arc<TagEntry>> = vec![];
         loop {
-            if now.elapsed() > self.read_timeout {
+            if now.elapsed() > self.opts.read_timeout {
                 break;
             }
             remaining = remaining
@@ -453,7 +457,7 @@ impl Controller {
                         _ => {
                             error!(
                                 "controller {} - failed to read tag {}: {}",
-                                self.host,
+                                self.opts.host,
                                 tag.name(),
                                 status.decode()
                             );
@@ -472,7 +476,7 @@ impl Controller {
         for tag in remaining.values() {
             error!(
                 "controller {} - timeout to read tag {}",
-                self.host,
+                self.opts.host,
                 tag.name()
             );
             let _ = tag.abort();
@@ -492,7 +496,7 @@ impl Controller {
 
     #[inline]
     pub(crate) fn generate_key(&self, tag_name: &str) -> String {
-        format!("{},{}", self.host, tag_name)
+        format!("{},{}", self.opts.host, tag_name)
     }
 }
 
