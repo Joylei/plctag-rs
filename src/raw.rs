@@ -398,5 +398,25 @@ mod tests {
         assert!(res.is_ok());
         let level = tag.get_u32(0).unwrap_or_default();
         assert_eq!(level, 1);
+
+        let mut buf: Vec<u8> = vec![0; size as usize];
+        let size = tag.get_bytes(&mut buf).unwrap();
+        assert_eq!(size, 30);
+        let result = &[
+            1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0,
+        ];
+        assert_eq!(&buf, result);
+
+        buf[0] = 3;
+
+        tag.set_bytes(&buf).unwrap();
+
+        tag.get_bytes(&mut buf).unwrap();
+        let result = &[
+            3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0,
+        ];
+        assert_eq!(&buf, result);
     }
 }

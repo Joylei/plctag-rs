@@ -55,8 +55,8 @@ impl Operation for PingPong {
 
         //read write whatever type
         let size = tag1.size()?;
-        let mut buf: Vec<u8> = Vec::with_capacity(size as usize);
-        tag1.get_bytes(&mut buf[..])?;
+        let mut buf: Vec<u8> = vec![0; size as usize];
+        tag1.get_bytes(&mut buf)?;
         tag2.set_bytes(&buf)?;
         Ok(())
     }
@@ -87,6 +87,4 @@ fn main() {
     for _ in 0..1000 {
         controller1.post(PingPong {});
     }
-
-    thread1.join().unwrap();
 }

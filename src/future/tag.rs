@@ -3,7 +3,9 @@
 use super::{asyncify, get_status};
 use crate::{error::Error, RawTag, Result, Status, TagValue};
 use std::cell::UnsafeCell;
+use std::fmt;
 use std::future::Future;
+use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
@@ -257,9 +259,14 @@ pub struct Buf {
 
 impl Buf {
     #[inline]
-    pub fn new(capacity: usize) -> Self {
-        Self::from(Vec::with_capacity(capacity))
+    pub fn new(len: usize) -> Self {
+        Self::from(vec![0; len])
     }
+
+    pub fn len(&self) -> usize {
+        unsafe { (*self.bytes.get()).len() }
+    }
+
     #[inline]
     pub fn get_mut(&self) -> &mut [u8] {
         unsafe { &mut *self.bytes.get() }
@@ -273,12 +280,36 @@ impl AsRef<[u8]> for Buf {
     }
 }
 
+impl Deref for Buf {
+    type Target = [u8];
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.bytes.get() }
+    }
+}
+
 impl From<Vec<u8>> for Buf {
     #[inline]
     fn from(bytes: Vec<u8>) -> Self {
         Self {
             bytes: UnsafeCell::new(bytes),
         }
+    }
+}
+
+impl<T> PartialEq<T> for Buf
+where
+    T: AsRef<[u8]>,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.as_ref().eq(other.as_ref())
+    }
+}
+
+impl fmt::Debug for Buf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let buf = self.deref();
+        fmt::Debug::fmt(buf, f)
     }
 }
 
@@ -514,8 +545,8 @@ mod tests {
             assert!(res.is_ok());
             let tag = res.unwrap();
 
-            // let size = tag.size().await.unwrap();
-            // assert!(size > 0);
+            let size = tag.size().await.unwrap();
+            assert!(size > 0);
             // let res = tag.read_and_get(0).await;
             // assert!(res.is_ok());
             // let level: u32 = res.unwrap();
@@ -529,6 +560,26 @@ mod tests {
             let level: u32 = res.unwrap();
             assert_eq!(level, 1);
 
+            let buf = Buf::new(size as usize);
+            let (buf, _) = tag.get_bytes(buf).await.unwrap();
+            assert_eq!(size, 30);
+            let result = &[
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0,
+            ];
+            assert_eq!(&buf, result);
+
+            buf.get_mut()[0] = 3;
+
+            tag.set_bytes(buf).await.unwrap();
+
+            let buf = Buf::new(size as usize);
+            let (buf, _) = tag.get_bytes(buf).await.unwrap();
+            let result = &[
+                3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0,
+            ];
+            assert_eq!(&buf, result);
             tag.id()
         };
         let mut rt = Runtime::new().unwrap();
