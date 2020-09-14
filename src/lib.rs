@@ -5,6 +5,7 @@
 //! - asynchronous APIs based on `Tokio`; blocking operations are posted to `tokio::task::spawn_blocking`; asynchronous read/write based on event callback.
 //! - tag path builder
 //! - UDT support
+//! - controller scan pattern
 //!
 //! ## How to use
 //!

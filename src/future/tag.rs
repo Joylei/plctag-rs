@@ -226,15 +226,21 @@ impl AsyncTag {
     }
 
     #[inline]
-    pub async fn get_bytes(&self, buf: &'static mut [u8]) -> Result<usize> {
+    pub async fn get_bytes(&self, buf: Buf) -> Result<(Buf, usize)> {
         let inner = Arc::clone(&self.inner);
-        asyncify(move || inner.raw.get_bytes(buf)).await
+        asyncify(move || {
+            inner
+                .raw
+                .get_bytes(buf.get_mut())
+                .and_then(|size| Ok((buf, size)))
+        })
+        .await
     }
 
     #[inline]
-    pub async fn set_bytes(&self, buf: &'static [u8]) -> Result<usize> {
+    pub async fn set_bytes(&self, buf: Buf) -> Result<usize> {
         let inner = Arc::clone(&self.inner);
-        asyncify(move || inner.raw.set_bytes(buf)).await
+        asyncify(move || inner.raw.set_bytes(buf.as_ref())).await
     }
 }
 
@@ -242,6 +248,37 @@ impl Drop for AsyncTag {
     #[inline]
     fn drop(&mut self) {
         event::unregister(self.inner.raw.id());
+    }
+}
+
+pub struct Buf {
+    bytes: UnsafeCell<Vec<u8>>,
+}
+
+impl Buf {
+    #[inline]
+    pub fn new(capacity: usize) -> Self {
+        Self::from(Vec::with_capacity(capacity))
+    }
+    #[inline]
+    pub fn get_mut(&self) -> &mut [u8] {
+        unsafe { &mut *self.bytes.get() }
+    }
+}
+
+impl AsRef<[u8]> for Buf {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        unsafe { &*self.bytes.get() }
+    }
+}
+
+impl From<Vec<u8>> for Buf {
+    #[inline]
+    fn from(bytes: Vec<u8>) -> Self {
+        Self {
+            bytes: UnsafeCell::new(bytes),
+        }
     }
 }
 

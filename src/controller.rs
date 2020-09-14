@@ -179,12 +179,12 @@ pub trait TagOptions {
 
 /// build controller
 pub struct ControllerOptions {
-    host: String,
-    scan_interval: Duration,
-    create_timeout: Duration,
-    read_timeout: Duration,
-    write_timeout: Duration,
-    poll_interval: Duration,
+    pub(crate) host: String,
+    pub(crate) scan_interval: Duration,
+    pub(crate) create_timeout: Duration,
+    pub(crate) read_timeout: Duration,
+    pub(crate) write_timeout: Duration,
+    pub(crate) poll_interval: Duration,
 }
 
 impl ControllerOptions {
@@ -398,7 +398,7 @@ impl Controller {
                         Status::Pending => true,
                         _ => {
                             error!(
-                                "controller {} - failed to read tag {}: {}",
+                                "controller {} - failed to write tag {}: {}",
                                 self.opts.host,
                                 tag.name(),
                                 status.decode()
@@ -520,14 +520,14 @@ pub struct TagEntry {
 impl Deref for TagEntry {
     type Target = RawTag;
     #[inline]
-    fn deref(&self) -> &RawTag {
+    fn deref(&self) -> &Self::Target {
         &self.raw
     }
 }
 
 impl DerefMut for TagEntry {
     #[inline]
-    fn deref_mut(&mut self) -> &mut RawTag {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.raw
     }
 }

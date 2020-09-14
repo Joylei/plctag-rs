@@ -2,12 +2,21 @@
 
 #![cfg(feature = "async")]
 
+#[cfg(feature = "controller")]
+pub mod controller;
 mod tag;
 
 use crate::{Result, Status};
 use tokio::task;
 
-pub use tag::AsyncTag;
+pub use tag::{AsyncTag, Buf};
+
+pub mod prelude {
+    #[cfg(feature = "controller")]
+    pub use super::controller::*;
+    pub use super::tag::{AsyncTag, Buf};
+    pub use crate::{Result, Status};
+}
 
 #[inline]
 pub(crate) async fn asyncify<F, T>(f: F) -> Result<T>
