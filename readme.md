@@ -2,13 +2,6 @@
 
 a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
 
-## Features
-
-- synchronous APIs
-- asynchronous APIs based on `Tokio`; blocking operations are posted to `tokio::task::spawn_blocking`; asynchronous read/write based on event callback.
-- tag path builder
-- UDT support
-
 ## How to use
 
 Download latest binary release of [libplctag](https://github.com/libplctag/libplctag/releases) and extract it to somewhere of your computer.
@@ -52,29 +45,6 @@ cargo build
  let status = tag.write(timeout);
  assert!(status.is_ok());
  println!("write done!");
- ```
-
-### async read/write tag
-
- ```rust
- use plctag::future::AsyncTag;
- use tokio::runtime::Runtime;
-
- let mut rt = Runtime::new()::unwrap();
- rt.block_on(async move {
-     // YOUR TAG DEFINITION
-     let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
-     let tag = AsyncTag::new(path).await.unwrap();
-
-     let offset = 0;
-     let value:u16 = 100;
-     //write tag
-     tag.set_and_write(offset, value).await.unwrap();
-     // read tag
-     let value:u16 = tag.read_and_get(offset).await.unwrap();
-     assert_eq!(value, 100);
- });
-
  ```
 
 ### UDT

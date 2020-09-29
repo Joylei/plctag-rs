@@ -1,12 +1,5 @@
 //! a rust wrapper of `libplctag`, with rust style APIs and useful extensions.
 //!
-//! # Features
-//! - synchronous APIs
-//! - asynchronous APIs based on `Tokio`; blocking operations are posted to `tokio::task::spawn_blocking`; asynchronous read/write based on event callback.
-//! - tag path builder
-//! - UDT support
-//! - controller scan pattern
-//!
 //! ## How to use
 //!
 //! Download latest binary release of [libplctag](https://github.com/libplctag/libplctag/releases) and extract it to somewhere of your computer.
@@ -54,29 +47,6 @@
 //!
 //! // tag will be destroyed when out of scope or manually call drop()
 //! drop(tag);
-//! ```
-//!
-//! ## async read/write tag
-//!
-//! ```rust,ignore
-//! use plctag::future::AsyncTag;
-//! use tokio::runtime::Runtime;
-//!
-//! let mut rt = Runtime::new()::unwrap();
-//! rt.block_on(async move {
-//!     // YOUR TAG DEFINITION
-//!     let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
-//!     let tag = AsyncTag::new(path).await.unwrap();
-//!     
-//!     let offset = 0;
-//!     let value:u16 = 100;
-//!     //write tag
-//!     tag.set_and_write(offset, value).await.unwrap();
-//!     // read tag
-//!     let value:u16 = tag.read_and_get(offset).await.unwrap();
-//!     assert_eq!(value, 100);
-//! });
-//!
 //! ```
 //!
 //! ## UDT
@@ -172,19 +142,12 @@
 //! Operations are not thread-safe in this library, please use `std::sync::Mutex` or something similar to enforce thread-safety.
 //!
 
-#[cfg(feature = "async")]
-#[macro_use]
-extern crate lazy_static;
-#[cfg(feature = "async")]
-extern crate futures;
 #[macro_use]
 extern crate log;
-#[cfg(any(feature = "async", feature = "controller"))]
+#[cfg(feature = "controller")]
 extern crate parking_lot;
-#[cfg(any(feature = "async", feature = "value"))]
+#[cfg(any(feature = "value"))]
 extern crate paste;
-#[cfg(feature = "async")]
-extern crate tokio;
 
 pub mod builder;
 #[cfg(feature = "controller")]
@@ -192,25 +155,23 @@ pub mod controller;
 pub(crate) mod debug;
 pub mod error;
 pub(crate) mod ffi;
-#[cfg(feature = "async")]
-pub mod future;
 pub mod plc;
 pub(crate) mod raw;
 pub mod status;
-#[cfg(any(feature = "async", feature = "value"))]
+#[cfg(feature = "value")]
 pub(crate) mod value;
 
 pub use debug::DebugLevel;
 pub use raw::RawTag;
 pub use status::Status;
 
-#[cfg(any(feature = "async", feature = "value"))]
+#[cfg(feature = "value")]
 pub use value::{Accessor, Bit, TagValue};
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
 pub mod prelude {
-    #[cfg(any(feature = "async", feature = "value"))]
+    #[cfg(feature = "value")]
     pub use crate::{Accessor, Bit, DebugLevel, RawTag, Result, Status, TagValue};
 }
 

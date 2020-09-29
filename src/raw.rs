@@ -5,6 +5,13 @@ use std::ffi::CString;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
+pub enum BusyState {
+    Idle,
+    Create,
+    Read,
+    Write,
+}
+
 /// wrapper of tag model based on `libplctag`
 #[derive(Debug)]
 pub struct RawTag {
