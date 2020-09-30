@@ -29,7 +29,7 @@ pub fn check_version(major: u32, minor: u32, patch: u32) -> bool {
 /// - version_patch
 #[inline]
 pub fn get_int_attr(attr: impl AsRef<str>, default: i32) -> Result<i32> {
-    let attr = CString::new(attr.as_ref())?;
+    let attr = CString::new(attr.as_ref()).unwrap();
     let val = unsafe { ffi::plc_tag_get_int_attribute(0, attr.as_ptr(), default) };
     Ok(val)
 }

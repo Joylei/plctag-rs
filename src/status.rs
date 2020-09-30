@@ -1,13 +1,10 @@
-use crate::{error::Error, ffi, Result};
+use crate::{ffi, Result};
 use std::ffi::CStr;
+use std::fmt;
 
 pub const PLCTAG_STATUS_OK: i32 = ffi::PLCTAG_STATUS_OK as i32;
 pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
 pub use ffi::PLCTAG_ERR_TIMEOUT;
-
-/// custom error for async task failure
-#[cfg(feature = "async")]
-pub const ERR_TASK_FAILED: i32 = -123456789;
 
 /// plc tag error code representations
 #[derive(Debug, Copy, Clone)]
@@ -66,7 +63,7 @@ impl Status {
         if self.is_ok() {
             Ok(())
         } else {
-            Err(Error::from(*self))
+            Err(*self)
         }
     }
 
@@ -85,10 +82,7 @@ impl Status {
     #[inline]
     pub fn decode(&self) -> String {
         let rc = (*self).into();
-        #[cfg(feature = "async")]
-        if rc == ERR_TASK_FAILED {
-            return "ERR_TASK_FAILED".to_owned();
-        }
+
         unsafe {
             let ptr = ffi::plc_tag_decode_error(rc);
             let msg = CStr::from_ptr(ptr);
@@ -100,13 +94,6 @@ impl Status {
     #[inline]
     pub(crate) fn err_timeout() -> Self {
         Status::new(ffi::PLCTAG_ERR_TIMEOUT)
-    }
-
-    #[cfg(feature = "async")]
-    #[doc(hidden)]
-    #[inline]
-    pub(crate) fn err_task() -> Self {
-        Status::new(ERR_TASK_FAILED)
     }
 }
 
@@ -125,6 +112,12 @@ impl From<Status> for i32 {
             Status::Pending => PLCTAG_STATUS_PENDING,
             Status::Ok => PLCTAG_STATUS_OK,
         }
+    }
+}
+
+impl fmt::Display for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.decode())
     }
 }
 

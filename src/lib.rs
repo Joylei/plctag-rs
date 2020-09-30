@@ -144,16 +144,15 @@
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate anyhow;
 #[cfg(feature = "controller")]
 extern crate parking_lot;
 #[cfg(any(feature = "value"))]
 extern crate paste;
 
 pub mod builder;
-#[cfg(feature = "controller")]
-pub mod controller;
 pub(crate) mod debug;
-pub mod error;
 pub(crate) mod ffi;
 pub mod plc;
 pub(crate) mod raw;
@@ -166,13 +165,13 @@ pub use raw::RawTag;
 pub use status::Status;
 
 #[cfg(feature = "value")]
-pub use value::{Accessor, Bit, TagValue};
+pub use value::{Accessor, TagValue};
 
-pub type Result<T> = std::result::Result<T, error::Error>;
+pub type Result<T> = std::result::Result<T, Status>;
 
 pub mod prelude {
     #[cfg(feature = "value")]
-    pub use crate::{Accessor, Bit, DebugLevel, RawTag, Result, Status, TagValue};
+    pub use crate::{Accessor, DebugLevel, RawTag, Result, Status, TagValue};
 }
 
 /// handle internal log messages of `libplctag`

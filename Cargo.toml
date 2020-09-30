@@ -18,6 +18,7 @@ controller=["parking_lot"]
 log="*"
 parking_lot={version="*", optional=true}
 paste={version="*", optional=true}
+anyhow="*"
 
 [build-dependencies]
 bindgen="*"

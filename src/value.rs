@@ -1,4 +1,4 @@
-#![cfg(any(feature = "async", feature = "value"))]
+#![cfg(feature = "value")]
 
 use crate::{RawTag, Result};
 use paste::paste;
@@ -112,6 +112,7 @@ value_impl!(u64);
 value_impl!(f32);
 value_impl!(f64);
 
+#[doc(hidden)]
 #[derive(Default)]
 pub struct Bit(bool);
 

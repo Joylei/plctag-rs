@@ -1,7 +1,9 @@
 //! builders for tag path and tag
 
-use crate::{DebugLevel, Result};
+use crate::DebugLevel;
 use std::fmt;
+
+pub use anyhow::Result;
 
 /// builder to build tag full path
 ///
@@ -150,7 +152,7 @@ impl PathBuilder {
     fn check(&self) -> Result<()> {
         //check protocol, required
         if self.protocol.is_none() {
-            return Err("protocol required".into());
+            return Err(anyhow!("protocol required"));
         }
 
         let protocol = self.protocol.unwrap();
@@ -160,40 +162,42 @@ impl PathBuilder {
                 //TODO: check gateway, either ip or host name
                 //check plc, required
                 if self.plc.is_none() {
-                    return Err("plc required".into());
+                    return Err(anyhow!("plc required"));
                 }
                 let plc = self.plc.unwrap();
                 if plc == PlcKind::ControlLogix {
                     if self.path.is_none() {
-                        return Err("path required for controllogix".into());
+                        return Err(anyhow!("path required for controllogix"));
                     }
                     return Ok(()); //skip check for elem_size
                 } else if plc == PlcKind::Micro800 {
                     if self.path.is_some() {
-                        return Err("path must not provided for micro800".into());
+                        return Err(anyhow!("path must not provided for micro800"));
                     }
                 }
                 if self.elem_size.is_none() {
-                    return Err("element size required".into());
+                    return Err(anyhow!("element size required"));
                 }
             }
             Protocol::ModBus => {
                 //TODO: check gateway, host with port
                 if self.gateway.is_none() {
-                    return Err("gateway required".into());
+                    return Err(anyhow!("gateway required"));
                 }
                 if self.name.is_none() {
-                    return Err("name required".into());
+                    return Err(anyhow!("name required"));
                 }
                 //path is number [0-255]
                 match self.path {
                     Some(ref path) => {
-                        let _: u8 = path.parse().or(Err("path is a number in range [0-255]"))?;
+                        let _: u8 = path
+                            .parse()
+                            .or(Err(anyhow!("path is a number in range [0-255]")))?;
                     }
-                    None => return Err("path required".into()),
+                    None => return Err(anyhow!("path required")),
                 }
                 if self.elem_size.is_none() {
-                    return Err("element size required".into());
+                    return Err(anyhow!("element size required"));
                 }
             }
         }

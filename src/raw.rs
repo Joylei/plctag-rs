@@ -5,13 +5,6 @@ use std::ffi::CString;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 
-pub enum BusyState {
-    Idle,
-    Create,
-    Read,
-    Write,
-}
-
 /// wrapper of tag model based on `libplctag`
 #[derive(Debug)]
 pub struct RawTag {
@@ -32,7 +25,7 @@ impl RawTag {
     /// let tag = RawTag::new(path, timeout).unwrap();
     /// ```
     pub fn new(path: impl AsRef<str>, timeout: u32) -> Result<Self> {
-        let path = CString::new(path.as_ref())?;
+        let path = CString::new(path.as_ref()).unwrap();
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };
         if tag_id < 0 {
             return Err(Status::new(ffi::PLCTAG_ERR_CREATE).into());
@@ -112,7 +105,7 @@ impl RawTag {
     /// get tag attribute
     #[inline]
     pub fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
-        let attr = CString::new(attr.as_ref())?;
+        let attr = CString::new(attr.as_ref()).unwrap();
         let val =
             unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) };
         if val == i32::MIN {
@@ -125,7 +118,7 @@ impl RawTag {
     /// set tag attribute
     #[inline]
     pub fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
-        let attr = CString::new(attr.as_ref())?;
+        let attr = CString::new(attr.as_ref()).unwrap();
         let rc = unsafe { ffi::plc_tag_set_int_attribute(self.tag_id, attr.as_ptr(), value) };
         Status::new(rc).into_result()
     }
@@ -137,7 +130,7 @@ impl RawTag {
         Status::new(rc)
     }
 
-    ///value size of bytes
+    ///Get the size in bytes used by the tag
     #[inline]
     pub fn size(&self) -> Result<u32> {
         let value = unsafe { ffi::plc_tag_get_size(self.tag_id) };
@@ -310,7 +303,6 @@ impl RawTag {
         let rc = unsafe { ffi::plc_tag_set_float64(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
-
     pub fn get_bytes(&self, buf: &mut [u8]) -> Result<usize> {
         let size = self.size()? as usize;
         let mut i = 0;
@@ -352,10 +344,6 @@ impl RawTag {
 
     /// Abort the pending operation.
     /// The operation is only needed when you write async code.
-    /// The library will take care it for you:
-    /// - if you use [`future::AsyncTag`]
-    /// - if you use [`RawTag`] with blocking read/write (timeout>0)
-    ///
     /// For non-blocking read/write (timeout=0), it's your responsibility to call this method to cancel the pending
     /// operation when timeout or other necessary situations.
     #[inline]
