@@ -171,7 +171,8 @@ pub type Result<T> = std::result::Result<T, Status>;
 
 pub mod prelude {
     #[cfg(feature = "value")]
-    pub use crate::{Accessor, DebugLevel, RawTag, Result, Status, TagValue};
+    pub use crate::{Accessor, TagValue};
+    pub use crate::{DebugLevel, RawTag, Result, Status};
 }
 
 /// handle internal log messages of `libplctag`

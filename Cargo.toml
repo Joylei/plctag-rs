@@ -10,7 +10,7 @@ edition = "2018"
 rustc-wrapper="sccache"
 
 [features]
-default=["value", "controller"]
+default=["value"]
 value=["paste"]
 controller=["parking_lot"]
 
