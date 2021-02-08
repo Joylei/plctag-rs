@@ -41,8 +41,9 @@ impl<O: TagOptions> TagEntry<O> {
         }
     }
 
+    /// wait until connected
     #[inline(always)]
-    pub async fn wait_ready(&self) {
+    pub async fn connect(&self) {
         self.token.wait().await
     }
 

@@ -87,10 +87,11 @@ impl TagFactory {
         }
     }
 
+    /// create tag. When tag created, will connect automatically in the background forever
     #[inline]
     async fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
         let path = opts.to_string();
-        let token = self.mailbox.create(path).await;
+        let token = mailbox::create(&self.mailbox, path).await;
         TagEntry::new(opts, token)
     }
 }
@@ -126,7 +127,7 @@ mod tests {
         rt.block_on(async {
             let factory = TagFactory::new();
             let tag = factory.create(DummyOptions {}).await;
-            tag.wait_ready().await;
+            tag.connect().await;
             let level: i32 = tag.read_value(0).await?;
             assert_eq!(level, 4);
 
