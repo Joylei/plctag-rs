@@ -1,3 +1,5 @@
+use core::convert::From;
+
 /// provides debugging output when enabled
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum DebugLevel {
@@ -46,10 +48,7 @@ impl From<u8> for DebugLevel {
             3 => DebugLevel::Info,
             4 => DebugLevel::Detail,
             5 => DebugLevel::Spew,
-            _ => {
-                warn!("unknown value ({}) for DebugLevel", val);
-                DebugLevel::None
-            }
+            _ => DebugLevel::None,
         }
     }
 }

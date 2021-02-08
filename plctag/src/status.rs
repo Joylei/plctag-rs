@@ -18,7 +18,7 @@ pub enum Status {
 }
 
 impl Status {
-    #[inline]
+    #[inline(always)]
     pub fn new(rc: i32) -> Self {
         match rc {
             PLCTAG_STATUS_OK => Status::Ok,
@@ -27,7 +27,7 @@ impl Status {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_ok(&self) -> bool {
         match self {
             Status::Ok => true,
@@ -35,7 +35,7 @@ impl Status {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_err(&self) -> bool {
         match self {
             Status::Err(_) => true,
@@ -43,14 +43,14 @@ impl Status {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn is_pending(&self) -> bool {
         match self {
             Status::Pending => true,
             _ => false,
         }
     }
-    #[inline]
+    #[inline(always)]
     pub fn is_timeout(&self) -> bool {
         match self {
             Status::Err(ref rc) => *rc == ffi::PLCTAG_ERR_TIMEOUT,
@@ -58,12 +58,12 @@ impl Status {
         }
     }
 
-    #[inline]
-    pub fn into_result(&self) -> Result<()> {
+    #[inline(always)]
+    pub fn into_result(self) -> Result<()> {
         if self.is_ok() {
             Ok(())
         } else {
-            Err(*self)
+            Err(self)
         }
     }
 
@@ -91,21 +91,21 @@ impl Status {
     }
 
     #[doc(hidden)]
-    #[inline]
+    #[inline(always)]
     pub(crate) fn err_timeout() -> Self {
         Status::new(ffi::PLCTAG_ERR_TIMEOUT)
     }
 }
 
 impl From<i32> for Status {
-    #[inline]
+    #[inline(always)]
     fn from(rc: i32) -> Status {
         Status::new(rc)
     }
 }
 
 impl From<Status> for i32 {
-    #[inline]
+    #[inline(always)]
     fn from(status: Status) -> i32 {
         match status {
             Status::Err(ref rc) => *rc,
@@ -116,6 +116,7 @@ impl From<Status> for i32 {
 }
 
 impl fmt::Display for Status {
+    #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.decode())
     }

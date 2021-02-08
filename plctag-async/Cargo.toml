@@ -1,0 +1,20 @@
+[package]
+name = "plctag-async"
+version = "0.1.0"
+authors = ["joylei <leingliu@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+plctag-sys = { path = "../plctag-sys" }
+plctag = { path = "../plctag" }
+parking_lot = "*"
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "time", "sync"] }
+uuid = { version = "*", features = ["v4"] }
+futures = { version = "*" }
+log = "*"
+lazy_static = "*"
+
+[dev-dependencies]
+anyhow = "*"

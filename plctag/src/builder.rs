@@ -1,9 +1,18 @@
 //! builders for tag path and tag
 
-use crate::DebugLevel;
-use std::fmt;
+pub use crate::debug::DebugLevel;
+use core::fmt;
 
-pub use anyhow::Result;
+type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Debug)]
+pub struct Error(&'static str);
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// builder to build tag full path
 ///
@@ -81,7 +90,7 @@ impl PathBuilder {
     }
 
     /// generic attribute:
-    ///  Optional. An integer number of milliseconds to cache read data.
+    /// Optional. An integer number of milliseconds to cache read data.
     /// Use this attribute to cause the tag read operations to cache data the requested number of milliseconds. This can be used to lower the actual number of requests against the PLC. Example read_cache_ms=100 will result in read operations no more often than once every 100 milliseconds.
     #[inline]
     pub fn read_cache_ms(&mut self, millis: usize) -> &mut Self {
@@ -152,7 +161,7 @@ impl PathBuilder {
     fn check(&self) -> Result<()> {
         //check protocol, required
         if self.protocol.is_none() {
-            return Err(anyhow!("protocol required"));
+            return Err(Error("protocol required"));
         }
 
         let protocol = self.protocol.unwrap();
@@ -162,42 +171,42 @@ impl PathBuilder {
                 //TODO: check gateway, either ip or host name
                 //check plc, required
                 if self.plc.is_none() {
-                    return Err(anyhow!("plc required"));
+                    return Err(Error("plc required"));
                 }
                 let plc = self.plc.unwrap();
                 if plc == PlcKind::ControlLogix {
                     if self.path.is_none() {
-                        return Err(anyhow!("path required for controllogix"));
+                        return Err(Error("path required for controllogix"));
                     }
                     return Ok(()); //skip check for elem_size
                 } else if plc == PlcKind::Micro800 {
                     if self.path.is_some() {
-                        return Err(anyhow!("path must not provided for micro800"));
+                        return Err(Error("path must not provided for micro800"));
                     }
                 }
                 if self.elem_size.is_none() {
-                    return Err(anyhow!("element size required"));
+                    return Err(Error("element size required"));
                 }
             }
             Protocol::ModBus => {
                 //TODO: check gateway, host with port
                 if self.gateway.is_none() {
-                    return Err(anyhow!("gateway required"));
+                    return Err(Error("gateway required"));
                 }
                 if self.name.is_none() {
-                    return Err(anyhow!("name required"));
+                    return Err(Error("name required"));
                 }
                 //path is number [0-255]
                 match self.path {
                     Some(ref path) => {
                         let _: u8 = path
                             .parse()
-                            .or(Err(anyhow!("path is a number in range [0-255]")))?;
+                            .or(Err(Error("path is a number in range [0-255]")))?;
                     }
-                    None => return Err(anyhow!("path required")),
+                    None => return Err(Error("path required")),
                 }
                 if self.elem_size.is_none() {
-                    return Err(anyhow!("element size required"));
+                    return Err(Error("element size required"));
                 }
             }
         }
@@ -250,7 +259,7 @@ impl PathBuilder {
             path_buf.push(format!("debug={}", level));
         }
         let buf = path_buf.join("&");
-        Ok(buf.to_owned())
+        Ok(buf)
     }
 }
 

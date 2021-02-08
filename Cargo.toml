@@ -1,24 +1,7 @@
-[package]
-name = "plctag"
-version = "0.1.0"
-authors = ["joylei <leingliu@gmail.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
+[workspace]
+members = ["plctag-async", "plctag-co", "plctag", "plctag-sys", "plctag-log"]
 [build]
-rustc-wrapper="sccache"
+rustc-wrapper = "sccache"
 
-[features]
-default=["value"]
-value=["paste"]
-controller=["parking_lot"]
-
-[dependencies]
-log="*"
-parking_lot={version="*", optional=true}
-paste={version="*", optional=true}
-anyhow="*"
-
-[build-dependencies]
-bindgen="*"
+[profile.test]
+debug = 1

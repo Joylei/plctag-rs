@@ -1,0 +1,18 @@
+[package]
+name = "plctag-co"
+version = "0.1.0"
+authors = ["joylei <leingliu@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+plctag-sys = { path = "../plctag-sys" }
+plctag = { path = "../plctag" }
+log = "*"
+lazy_static = "*"
+may = "*"
+parking_lot = "*"
+once_cell = "*"
+uuid = { version = "*", features = ["v4"] }
+
+[dev-dependencies]
+anyhow = "*"

@@ -117,12 +117,14 @@ value_impl!(f64);
 pub struct Bit(bool);
 
 impl From<bool> for Bit {
+    #[inline]
     fn from(v: bool) -> Bit {
         Bit(v)
     }
 }
 
 impl From<Bit> for bool {
+    #[inline]
     fn from(bit: Bit) -> bool {
         bit.0
     }
@@ -142,13 +144,14 @@ impl TagValue for Bit {
 }
 
 impl<T: TagValue> TagValue for Option<T> {
+    #[inline]
     fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
         let mut v: T = Default::default();
         v.get_value(tag, offset)?;
         *self = Some(v);
         Ok(())
     }
-
+    #[inline]
     fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
         if let Some(ref v) = self {
             v.set_value(tag, offset)?;
