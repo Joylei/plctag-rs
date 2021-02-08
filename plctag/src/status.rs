@@ -4,7 +4,6 @@ use std::fmt;
 
 pub const PLCTAG_STATUS_OK: i32 = ffi::PLCTAG_STATUS_OK as i32;
 pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
-pub use ffi::PLCTAG_ERR_TIMEOUT;
 
 /// plc tag error code representations
 #[derive(Debug, Copy, Clone)]
@@ -88,12 +87,6 @@ impl Status {
             let msg = CStr::from_ptr(ptr);
             msg.to_string_lossy().to_string()
         }
-    }
-
-    #[doc(hidden)]
-    #[inline(always)]
-    pub(crate) fn err_timeout() -> Self {
-        Status::new(ffi::PLCTAG_ERR_TIMEOUT)
     }
 }
 

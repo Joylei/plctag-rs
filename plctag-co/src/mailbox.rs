@@ -36,7 +36,7 @@ impl Mailbox {
         let worker = {
             go!(|| {
                 Processor::new(receiver).run();
-                debug!("mailbox - exit loop");
+                trace!("mailbox - exit loop");
             })
         };
         Self { worker, sender }
@@ -231,7 +231,7 @@ impl Inner {
     }
     #[inline(always)]
     fn set_result(&self, tag: RawTag) {
-        debug!("tag[{}] initialization ok: {:?}", self.id, &tag,);
+        trace!("tag[{}] initialization ok: {:?}", self.id, &tag,);
         let _ = self.cell.set(tag);
     }
     #[inline(always)]

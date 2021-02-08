@@ -8,7 +8,7 @@ use std::{
 
 use futures::channel::oneshot;
 use mailbox::Token;
-use plctag::{event::Remover, Accessor};
+use plctag::Accessor;
 use plctag_sys as ffi;
 use tokio::sync::Notify;
 
