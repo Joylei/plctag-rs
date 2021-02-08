@@ -1,12 +1,11 @@
-use crate::{event::Listener, ffi};
-use crate::{Result, Status};
+use crate::*;
 
 //use std::thread::sleep;
 use std::time::{Duration, Instant};
 use std::{ffi::CString, thread};
 
 #[cfg(feature = "event")]
-use crate::event::{Arc, Event, EventEmitter};
+use crate::event::{Arc, Event, EventEmitter, ListenerBuilder};
 
 /// wrapper of tag model based on `libplctag`
 #[derive(Debug)]
@@ -362,22 +361,25 @@ impl RawTag {
     }
 
     /// listen for events
+    ///
+    /// # Examples
     /// ```rust,ignore
+    /// use plctag::event::Event;
     /// let tag: RawTag = ...;
-    /// let removal = tag.listen(|evt, status|
+    /// let listener = tag.listen(|evt, status|
     /// {
     ///      println!("tag event: {}, status: {}", evt, status);   
     /// })
-    /// .event(READ) // only interest READ event
-    /// .manual(true) // requires call off() of Removal to remove the listener
+    /// .event(Event::ReadCompleted)
+    /// .manual(true)
     /// .on();
     ///
     /// //remove listener later
-    /// removal.off();
+    /// listener.off();
     /// ```
     #[cfg(feature = "event")]
     #[inline(always)]
-    pub fn listen<'a, F>(&'a self, f: F) -> Listener<'a, F>
+    pub fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
     where
         F: FnMut(Event, Status) + Send + 'static,
     {

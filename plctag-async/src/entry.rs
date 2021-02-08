@@ -8,7 +8,7 @@ use std::{
 
 use futures::channel::oneshot;
 use mailbox::Token;
-use plctag::Accessor;
+use plctag::{event::Event, Accessor};
 use plctag_sys as ffi;
 use tokio::sync::Notify;
 
@@ -153,16 +153,12 @@ impl<'a> Operation<'a> {
         let removal = tag
             .listen(move |evt, status| {
                 //TODO: check status
-                if evt > 0 {
-                    match evt as u32 {
-                        ffi::PLCTAG_EVENT_READ_COMPLETED if rw => (),
-                        ffi::PLCTAG_EVENT_WRITE_COMPLETED if !rw => (),
-                        ffi::PLCTAG_EVENT_ABORTED => (),
-                        ffi::PLCTAG_EVENT_DESTROYED => (),
-                        _ => return,
-                    }
-                } else {
-                    return;
+                match evt {
+                    Event::ReadCompleted if rw => (),
+                    Event::WriteCompleted if !rw => (),
+                    Event::Aborted => (),
+                    Event::Destroyed => (),
+                    _ => return,
                 }
                 //interested
                 tx.take().map(|tx| {

@@ -1,9 +1,10 @@
-use ffi::{plc_tag_register_callback, plc_tag_unregister_callback};
 use parking_lot::Mutex;
 use plctag_sys as ffi;
 use std::{
     collections::{HashMap, HashSet},
-    fmt, mem, panic,
+    fmt,
+    hash::Hash,
+    panic,
     sync::{atomic::AtomicUsize, Weak},
 };
 
@@ -11,15 +12,134 @@ pub(crate) use std::sync::Arc;
 
 use crate::{status, Status};
 
-pub type Event = i32;
+/// event type
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum Event {
+    /// tag connected
+    Connected,
+    /// start reading
+    ReadStarted,
+    /// reading completed
+    ReadCompleted,
+    /// start writing
+    WriteStarted,
+    /// write completed
+    WriteCompleted,
+    /// connect/read/write aborted
+    Aborted,
+    /// tag destroyed
+    Destroyed,
+    /// other
+    Other(i32),
+}
 
-pub struct Listener<'a, F: FnMut(Event, Status) + Send + 'static> {
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Event::*;
+        match self {
+            Connected => write!(f, "Connected"),
+            ReadStarted => write!(f, "ReadStarted"),
+            ReadCompleted => write!(f, "ReadCompleted"),
+            WriteStarted => write!(f, "WriteStarted"),
+            WriteCompleted => write!(f, "WriteCompleted"),
+            Aborted => write!(f, "Aborted"),
+            Destroyed => write!(f, "Destroyed"),
+            Event::Other(v) => write!(f, "Other({})", v),
+        }
+    }
+}
+
+impl Hash for Event {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let v = (*self).into();
+        state.write_i32(v);
+    }
+}
+
+const TAG_CONNECTED: i32 = 1000;
+const PLCTAG_EVENT_READ_STARTED: i32 = ffi::PLCTAG_EVENT_READ_STARTED as i32;
+const PLCTAG_EVENT_READ_COMPLETED: i32 = ffi::PLCTAG_EVENT_READ_COMPLETED as i32;
+const PLCTAG_EVENT_WRITE_STARTED: i32 = ffi::PLCTAG_EVENT_WRITE_STARTED as i32;
+const PLCTAG_EVENT_WRITE_COMPLETED: i32 = ffi::PLCTAG_EVENT_WRITE_COMPLETED as i32;
+const PLCTAG_EVENT_ABORTED: i32 = ffi::PLCTAG_EVENT_ABORTED as i32;
+const PLCTAG_EVENT_DESTROYED: i32 = ffi::PLCTAG_EVENT_DESTROYED as i32;
+
+impl From<i32> for Event {
+    fn from(evt: i32) -> Self {
+        use Event::*;
+        match evt {
+            TAG_CONNECTED => Connected,
+            PLCTAG_EVENT_READ_STARTED => ReadStarted,
+            PLCTAG_EVENT_READ_COMPLETED => ReadCompleted,
+            PLCTAG_EVENT_WRITE_STARTED => WriteStarted,
+            PLCTAG_EVENT_WRITE_COMPLETED => WriteCompleted,
+            PLCTAG_EVENT_ABORTED => Aborted,
+            PLCTAG_EVENT_DESTROYED => Destroyed,
+            v => Other(v),
+        }
+    }
+}
+
+impl From<Event> for i32 {
+    fn from(evt: Event) -> i32 {
+        use Event::*;
+        match evt {
+            Connected => TAG_CONNECTED,
+            ReadStarted => PLCTAG_EVENT_READ_STARTED,
+            ReadCompleted => PLCTAG_EVENT_READ_COMPLETED,
+            WriteStarted => PLCTAG_EVENT_WRITE_STARTED,
+            WriteCompleted => PLCTAG_EVENT_WRITE_COMPLETED,
+            Aborted => PLCTAG_EVENT_ABORTED,
+            Destroyed => PLCTAG_EVENT_DESTROYED,
+            Event::Other(v) => v,
+        }
+    }
+}
+
+/// build an event listener.
+///
+/// By default, manual is true, and listen for all events.
+///
+/// # Examples
+/// ## manually remove listener
+/// must keep listener alive, otherwise you'll lose the chance to remove the listener from tag
+/// ```rust,ignore
+/// use plctag::event::Event;
+/// let tag: RawTag = ...;
+/// let listener = tag.listen(|evt, status|
+/// {
+///      println!("tag event: {}, status: {}", evt, status);   
+/// })
+/// .event(Event::ReadCompleted)
+/// .manual(true)
+/// .on();
+///
+/// //remove listener later by call Listener::off()
+/// listener.off();
+/// ```
+/// ## auto remove listener
+/// ```rust,ignore
+/// use plctag::event::Event;
+/// let tag: RawTag = ...;
+/// {
+///     let listener = tag.listen(|evt, status|
+///     {
+///          println!("tag event: {}, status: {}", evt, status);   
+///     })
+///     .event(Event::ReadCompleted)
+///     .manual(false)
+///     .on();
+///     //do something with the tag
+/// }
+/// //here, listener removed <=
+/// ```
+pub struct ListenerBuilder<'a, F: FnMut(Event, Status) + Send + 'static> {
     emitter: &'a Arc<EventEmitter>,
     manual: bool,
     handler: HandlerImpl<F>,
 }
 
-impl<'a, F: FnMut(Event, Status) + Send + 'static> Listener<'a, F> {
+impl<'a, F: FnMut(Event, Status) + Send + 'static> ListenerBuilder<'a, F> {
     #[inline(always)]
     pub(crate) fn new(emitter: &'a Arc<EventEmitter>, f: F) -> Self {
         Self {
@@ -29,14 +149,15 @@ impl<'a, F: FnMut(Event, Status) + Send + 'static> Listener<'a, F> {
         }
     }
 
-    /// manually remove the listener, otherwise removed when drop
+    /// manual = true, requires explicitly call [`Listener::off()`] to remove the callback;
+    /// manual = false, the callback will be removed when [`Listener`] drops.
     #[inline(always)]
     pub fn manual(mut self, val: bool) -> Self {
         self.manual = val;
         self
     }
 
-    /// listen for one events
+    /// listen for one event
     #[inline(always)]
     pub fn event(mut self, evt: Event) -> Self {
         self.handler.for_event(evt);
@@ -51,7 +172,7 @@ impl<'a, F: FnMut(Event, Status) + Send + 'static> Listener<'a, F> {
     }
 
     #[inline(always)]
-    pub fn on(self) -> Remover {
+    pub fn on(self) -> Listener {
         self.emitter.add(self.handler, self.manual)
     }
 }
@@ -62,7 +183,6 @@ pub(crate) trait Handler: fmt::Debug {
 
 struct HandlerImpl<F: FnMut(Event, Status) + Send + 'static> {
     interest: Option<HashSet<Event>>,
-    once: bool,
     cb: F,
 }
 
@@ -77,11 +197,7 @@ impl<F: FnMut(Event, Status) + Send + 'static> fmt::Debug for HandlerImpl<F> {
 impl<F: FnMut(Event, Status) + Send + 'static> HandlerImpl<F> {
     #[inline(always)]
     fn new(cb: F) -> Self {
-        Self {
-            interest: None,
-            once: false,
-            cb,
-        }
+        Self { interest: None, cb }
     }
 
     #[inline(always)]
@@ -102,7 +218,7 @@ impl<F: FnMut(Event, Status) + Send + 'static> HandlerImpl<F> {
     #[inline(always)]
     fn interested(&self, evt: Event) -> bool {
         if let Some(ref items) = self.interest {
-            items.iter().any(|v| *v == evt)
+            items.contains(&evt)
         } else {
             true
         }
@@ -118,14 +234,14 @@ impl<F: FnMut(Event, Status) + Send + 'static> Handler for HandlerImpl<F> {
     }
 }
 
-/// event listener remover
-pub struct Remover {
+/// event listener, see [`ListenerBuilder`] for usage.
+pub struct Listener {
     id: usize,
     inner: Option<Weak<EventEmitter>>,
     manual: bool,
 }
 
-impl Remover {
+impl Listener {
     /// remove event handler
     #[inline(always)]
     pub fn off(self) {
@@ -148,7 +264,7 @@ impl Remover {
     }
 }
 
-impl Drop for Remover {
+impl Drop for Listener {
     #[inline(always)]
     fn drop(&mut self) {
         if !self.manual {
@@ -215,11 +331,11 @@ impl EventEmitter {
     }
 
     #[inline(always)]
-    pub(crate) fn listen<'a, F>(self: &'a Arc<Self>, f: F) -> Listener<'a, F>
+    pub(crate) fn listen<'a, F>(self: &'a Arc<Self>, f: F) -> ListenerBuilder<'a, F>
     where
         F: FnMut(Event, Status) + Send + 'static,
     {
-        Listener::new(&self, f)
+        ListenerBuilder::new(&self, f)
     }
 
     #[inline(always)]
@@ -227,7 +343,7 @@ impl EventEmitter {
         self: &Arc<Self>,
         handler: impl Handler + Send + 'static,
         manual: bool,
-    ) -> Remover {
+    ) -> Listener {
         let id = self.gen_id();
         {
             let map = &mut *self.map.lock();
@@ -244,7 +360,7 @@ impl EventEmitter {
             }
         }
 
-        Remover {
+        Listener {
             id,
             inner: Some(Arc::downgrade(self)),
             manual,
@@ -304,7 +420,7 @@ impl EventRegistry {
     #[inline]
     fn dispatch(&self, tag_id: i32, event: i32, status: i32) {
         if let Some(handle) = self.get(tag_id) {
-            handle.emit(event, status.into());
+            handle.emit(event.into(), status.into());
         }
     }
 }
@@ -322,10 +438,6 @@ mod test {
     use std::sync::atomic::{AtomicI32, Ordering};
 
     use super::*;
-
-    const EVENT_READ: Event = 0;
-    const EVENT_WRITE: Event = 2;
-
     struct Holder {
         count: AtomicUsize,
         event: AtomicI32,
@@ -343,16 +455,17 @@ mod test {
             self.count.load(Ordering::SeqCst)
         }
 
-        fn event(&self) -> i32 {
-            self.event.load(Ordering::SeqCst)
+        fn event(&self) -> Event {
+            self.event.load(Ordering::SeqCst).into()
         }
 
         fn inc_count(&self) {
             self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         }
 
-        fn set_event(&self, val: i32) {
-            self.event.store(val, std::sync::atomic::Ordering::SeqCst);
+        fn set_event(&self, val: Event) {
+            self.event
+                .store(val.into(), std::sync::atomic::Ordering::SeqCst);
         }
     }
 
@@ -368,18 +481,18 @@ mod test {
             .listen(move |e, s| {
                 holder1.inc_count();
             })
-            .event(EVENT_READ)
+            .event(Event::ReadCompleted)
             .manual(true)
             .on();
 
         assert!(EVENTS.len() > 0);
 
-        EVENTS.dispatch(0, EVENT_READ, 0);
+        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
         assert!(holder.count() == 1);
 
         token1.off();
 
-        EVENTS.dispatch(0, EVENT_READ, 0);
+        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
         assert!(holder.count() == 1);
     }
 
@@ -396,7 +509,7 @@ mod test {
             .listen(move |e, s| {
                 holder1.set_event(e);
             })
-            .event(EVENT_READ)
+            .event(Event::ReadCompleted)
             .manual(true)
             .on();
         let holder2 = Arc::clone(&holder);
@@ -410,26 +523,26 @@ mod test {
 
         assert!(EVENTS.len() > 0);
 
-        EVENTS.dispatch(0, EVENT_READ, 0);
+        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
 
         assert_eq!(holder.count(), 1);
-        assert_eq!(holder.event(), EVENT_READ);
+        assert_eq!(holder.event(), Event::ReadCompleted);
 
-        EVENTS.dispatch(0, EVENT_WRITE, 0);
+        EVENTS.dispatch(0, Event::WriteCompleted.into(), 0);
 
         assert_eq!(holder.count(), 2);
-        assert_eq!(holder.event(), EVENT_READ);
+        assert_eq!(holder.event(), Event::ReadCompleted);
 
         token1.off();
 
-        EVENTS.dispatch(0, EVENT_READ, 0);
+        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
         assert_eq!(holder.count(), 3);
-        assert_eq!(holder.event(), EVENT_READ);
+        assert_eq!(holder.event(), Event::ReadCompleted);
 
         token2.off();
 
-        EVENTS.dispatch(0, EVENT_READ, 0);
+        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
         assert_eq!(holder.count(), 3);
-        assert_eq!(holder.event(), EVENT_READ);
+        assert_eq!(holder.event(), Event::ReadCompleted);
     }
 }

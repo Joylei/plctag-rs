@@ -5,8 +5,7 @@ use crate::*;
 use mailbox::{Mailbox, Token};
 use may::sync::Blocker;
 use once_cell::sync::OnceCell;
-use plctag_sys as ffi;
-
+use plctag::event::Event;
 pub struct TagEntry<O: TagOptions> {
     opts: O,
     token: Token,
@@ -116,16 +115,12 @@ impl<'a> Operation<'a> {
             let cell = Arc::clone(&cell);
             tag.listen(move |evt, status| {
                 //TODO: check status
-                if evt > 0 {
-                    match evt as u32 {
-                        ffi::PLCTAG_EVENT_READ_COMPLETED if rw => (),
-                        ffi::PLCTAG_EVENT_WRITE_COMPLETED if !rw => (),
-                        ffi::PLCTAG_EVENT_ABORTED => (),
-                        ffi::PLCTAG_EVENT_DESTROYED => (),
-                        _ => return,
-                    }
-                } else {
-                    return;
+                match evt {
+                    Event::ReadCompleted if rw => (),
+                    Event::WriteCompleted if !rw => (),
+                    Event::Aborted => (),
+                    Event::Destroyed => (),
+                    _ => return,
                 }
                 //interested
                 if cell.set(status).is_ok() {
