@@ -15,8 +15,6 @@ use crate::{status, Status};
 /// event type
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Event {
-    /// tag connected
-    Connected,
     /// start reading
     ReadStarted,
     /// reading completed
@@ -37,7 +35,6 @@ impl fmt::Display for Event {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Event::*;
         match self {
-            Connected => write!(f, "Connected"),
             ReadStarted => write!(f, "ReadStarted"),
             ReadCompleted => write!(f, "ReadCompleted"),
             WriteStarted => write!(f, "WriteStarted"),
@@ -56,7 +53,6 @@ impl Hash for Event {
     }
 }
 
-const TAG_CONNECTED: i32 = 1000;
 const PLCTAG_EVENT_READ_STARTED: i32 = ffi::PLCTAG_EVENT_READ_STARTED as i32;
 const PLCTAG_EVENT_READ_COMPLETED: i32 = ffi::PLCTAG_EVENT_READ_COMPLETED as i32;
 const PLCTAG_EVENT_WRITE_STARTED: i32 = ffi::PLCTAG_EVENT_WRITE_STARTED as i32;
@@ -68,7 +64,6 @@ impl From<i32> for Event {
     fn from(evt: i32) -> Self {
         use Event::*;
         match evt {
-            TAG_CONNECTED => Connected,
             PLCTAG_EVENT_READ_STARTED => ReadStarted,
             PLCTAG_EVENT_READ_COMPLETED => ReadCompleted,
             PLCTAG_EVENT_WRITE_STARTED => WriteStarted,
@@ -84,7 +79,6 @@ impl From<Event> for i32 {
     fn from(evt: Event) -> i32 {
         use Event::*;
         match evt {
-            Connected => TAG_CONNECTED,
             ReadStarted => PLCTAG_EVENT_READ_STARTED,
             ReadCompleted => PLCTAG_EVENT_READ_COMPLETED,
             WriteStarted => PLCTAG_EVENT_WRITE_STARTED,
@@ -254,7 +248,7 @@ impl Listener {
     fn called(&self) -> bool {
         self.inner.is_some()
     }
-
+    #[inline(always)]
     fn remove_listener(&mut self) {
         self.inner
             .take()
@@ -326,7 +320,7 @@ impl EventEmitter {
     }
 
     #[inline(always)]
-    fn gen_id(&self) -> usize {
+    fn next_id(&self) -> usize {
         self.gen.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
     }
 
@@ -344,7 +338,7 @@ impl EventEmitter {
         handler: impl Handler + Send + 'static,
         manual: bool,
     ) -> Listener {
-        let id = self.gen_id();
+        let id = self.next_id();
         {
             let map = &mut *self.map.lock();
             map.insert(id, Box::new(handler));
@@ -397,7 +391,7 @@ impl EventRegistry {
         map.len()
     }
 
-    #[inline]
+    #[inline(always)]
     fn add(&self, item: &Arc<EventEmitter>) {
         let tag_id = item.tag_id;
         let item = Arc::downgrade(item);
