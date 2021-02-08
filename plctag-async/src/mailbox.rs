@@ -140,10 +140,6 @@ impl Inner {
                     self.set_result(state.tag.take().unwrap());
                     return true;
                 }
-                if status.is_pending() {
-                    return false;
-                }
-                //err
                 status
             }
             None => {
@@ -160,9 +156,7 @@ impl Inner {
                         }
                         if status.is_pending() {
                             state.tag = Some(tag); // for further checking
-                            return false;
                         }
-                        //err
                         status
                     }
                     Err(status) => status,
@@ -171,7 +165,7 @@ impl Inner {
         };
 
         if status.is_err() {
-            debug!("tag[{}] initialization failed", self.id);
+            trace!("tag[{}] initialization failed", self.id);
             self.on_error();
         }
 
@@ -179,7 +173,7 @@ impl Inner {
     }
     #[inline(always)]
     fn set_result(&self, tag: RawTag) {
-        debug!("tag[{}] initialization ok: {:?}", self.id, &tag);
+        trace!("tag[{}] initialization ok: {:?}", self.id, &tag);
         let _ = self.cell.set(tag);
     }
     #[inline(always)]
@@ -188,7 +182,7 @@ impl Inner {
         state.retry_times = state.retry_times + 1;
         state.next_retry_time = Instant::now() + Duration::from_secs(1);
         state.tag = None;
-        debug!("tag[{}] initialization will retry in 1 sec", self.id);
+        trace!("tag[{}] initialization will retry in 1 sec", self.id);
     }
 }
 unsafe impl Send for Inner {}
@@ -246,7 +240,7 @@ impl Processor {
 
     async fn scan(&mut self) -> Result<()> {
         let mut ready_list = vec![];
-        for (i, item) in self.pending.values_mut().enumerate() {
+        for item in self.pending.values() {
             let id = item.id;
             let done = {
                 let item = Arc::clone(item);

@@ -149,7 +149,6 @@ impl<'a> Operation<'a> {
         let tag = self.token.get()?;
         self.status = Status::Pending;
         let (tx, rx) = oneshot::channel();
-        //Option hack for moving out value
         let mut tx = Some(tx);
         let removal = tag
             .listen(move |evt, status| {

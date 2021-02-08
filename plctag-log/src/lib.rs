@@ -74,16 +74,14 @@ pub fn log_adapt() {
         ffi::plc_tag_unregister_logger();
         let rc = ffi::plc_tag_register_logger(Some(log_route));
         debug_assert_eq!(rc, ffi::PLCTAG_STATUS_OK as i32);
-        debug!("register logger for libplctag: {}", rc);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    extern crate plctag_core;
     use super::*;
     use log::*;
-    use plctag_core::RawTag;
+    use plctag::RawTag;
     use std::sync::{Arc, Mutex};
 
     struct MemLogger {
