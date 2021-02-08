@@ -1,3 +1,23 @@
+//! # plctag-log
+//!  log adapter for `libplctag`, one component of `libplctag` rust bindings
+//!
+//! ## Usage
+//! by default, `libplctag` logs internal messages to stdout, if you set debug level other than none.
+//! you can register your own logger by calling [`register_logger`].
+//! For convenient, [`log_adapt`] register a logger for you and will forward internal log messages to crate`log`.
+//!
+//! ### Note
+//! `libplctag` will print log messages to stdout even if you register your own logger by `register_logger`.
+//!
+//! ### Examples
+//! ```rust,ignore
+//! use plctag_log::*;
+//!
+//! log_adapt(); //register logger
+//! set_debug_level(DebugLevel::Info); // set debug level
+//!
+//! // now, you can receive log messages by any of logging implementations of crate `log`
+//! ```
 extern crate plctag;
 extern crate plctag_sys as ffi;
 #[macro_use]
@@ -46,22 +66,21 @@ unsafe extern "C" fn log_route(_tag_id: i32, level: i32, message: *const c_char)
         3 => info!("{}", msg),
         4 => debug!("{}", msg),
         5 => trace!("{}", msg),
+        6 => trace!("{}", msg),
         _ => (),
     }
 }
 
 /// by default, `libplctag` logs internal messages to stdout, if you set debug level other than none.
-/// you can register your own logger by calling [plc::register_logger](../plc/fn.register_logger.html).
+/// you can register your own logger by calling [`register_logger`].
 /// For convenient, this method will register a logger for you and will forward internal log messages to crate`log`.
 ///
 /// # Note
-/// `libplctag` will print log messages to stdout even if you register your own logger by `plc::register_logger`.
+/// `libplctag` will print log messages to stdout even if you register your own logger by `register_logger`.
 ///
 /// # Examples
 /// ```rust,ignore
-/// use plctag::logging::log_adapt;
-/// use plctag::plc::set_debug_level;
-/// use plctag::DebugLevel;
+/// use plctag::*
 ///
 /// log_adapt(); //register logger
 /// set_debug_level(DebugLevel::Info); // set debug level
