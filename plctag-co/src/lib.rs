@@ -14,9 +14,14 @@ mod entry;
 mod mailbox;
 
 pub use entry::TagEntry;
+use mailbox::Mailbox;
 use may::coroutine::ParkError;
 pub use plctag::{Status, TagValue};
-use std::fmt::{self, Display};
+use std::{
+    fmt::{self, Display},
+    sync::Arc,
+};
+use uuid::Uuid;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -25,6 +30,33 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub trait TagOptions: Display {
     /// unique key
     fn key(&self) -> &str;
+}
+
+struct TagFactory {
+    mailbox: Arc<Mailbox>,
+}
+
+impl TagFactory {
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            mailbox: Arc::new(Mailbox::new()),
+        }
+    }
+
+    /// create tag. When tag created, will connect automatically in the background forever
+    #[inline]
+    fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
+        let path = opts.to_string();
+        let token = mailbox::create(&self.mailbox, path);
+        TagEntry::new(opts, token)
+    }
+}
+
+impl Default for TagFactory {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug)]
@@ -68,7 +100,6 @@ impl From<ParkError> for Error {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use may::coroutine as co;
     use std::fmt;
     use std::time::Duration;
 
@@ -87,17 +118,30 @@ mod tests {
     }
 
     #[test]
-    fn test_read_write() {
-        let worker = go!(|| {
-            let tag = TagEntry::new(DummyOptions {});
-            co::sleep(Duration::from_millis(500));
-            let level: i32 = tag.read_value(0).unwrap();
-            assert_eq!(level, 4);
+    fn test_connected() {
+        let factory = TagFactory::new();
+        let tag = factory.create(DummyOptions {});
+        let connected = tag.connected(Some(Duration::from_millis(150)));
+        assert!(connected);
 
-            tag.write_value(0, 1).unwrap();
-            let level: i32 = tag.read_value(0).unwrap();
-            assert_eq!(level, 1);
-        });
-        worker.join().unwrap();
+        let connected = tag.connected(Some(Duration::from_millis(150)));
+        assert!(connected);
+
+        let connected = tag.connected(Some(Duration::from_millis(150)));
+        assert!(connected);
+    }
+
+    #[test]
+    fn test_read_write() {
+        let factory = TagFactory::new();
+        let tag = factory.create(DummyOptions {});
+        let connected = tag.connected(Some(Duration::from_millis(150)));
+        assert!(connected);
+        let level: i32 = tag.read_value(0).unwrap();
+        assert_eq!(level, 4);
+
+        tag.write_value(0, 1).unwrap();
+        let level: i32 = tag.read_value(0).unwrap();
+        assert_eq!(level, 1);
     }
 }

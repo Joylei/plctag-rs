@@ -1,4 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::{
+    sync::{Arc, Weak},
+    time::Duration,
+};
 
 use crate::*;
 
@@ -13,11 +16,7 @@ pub struct TagEntry<O: TagOptions> {
 
 impl<O: TagOptions> TagEntry<O> {
     #[inline(always)]
-    pub fn new(opts: O) -> Self {
-        lazy_static! {
-            static ref MAILBOX: Mailbox = Mailbox::new();
-        };
-        let token = MAILBOX.create_tag(opts.to_string());
+    pub(crate) fn new(opts: O, token: Token) -> Self {
         Self { opts, token }
     }
 
@@ -27,22 +26,29 @@ impl<O: TagOptions> TagEntry<O> {
     }
 
     /// tag value size in bytes
+    #[inline(always)]
     pub fn size(&self) -> Result<u32> {
         let tag = self.token.get()?;
         let v = tag.size()?;
         Ok(v)
     }
-
+    #[inline(always)]
     pub fn elem_size(&self) -> Result<i32> {
         let tag = self.token.get()?;
         let v = tag.get_attr("elem_size", 0)?;
         Ok(v)
     }
-
+    #[inline(always)]
     pub fn elem_count(&self) -> Result<i32> {
         let tag = self.token.get()?;
         let v = tag.get_attr("elem_count", 0)?;
         Ok(v)
+    }
+
+    /// wait until connected or timeout; returns true if connected, false if timeout
+    #[inline(always)]
+    pub fn connected(&self, timeout: Option<Duration>) -> bool {
+        self.token.wait(timeout)
     }
 
     /// read from plc to memory

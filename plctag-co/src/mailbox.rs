@@ -1,13 +1,15 @@
-use co::yield_now;
 use may::{
     coroutine as co,
-    sync::mpsc::{Receiver, Sender},
+    sync::{
+        mpsc::{Receiver, Sender},
+        AtomicOption, SyncFlag,
+    },
 };
 use once_cell::sync::OnceCell;
 
 use std::{
     collections::HashMap,
-    ops::Add,
+    ops::{Add, Index},
     sync::{mpsc::TryRecvError, Arc},
     time::{Duration, Instant},
 };
@@ -17,6 +19,23 @@ use uuid::Uuid;
 use plctag::{RawTag, Result, Status};
 
 use plctag_sys as ffi;
+
+pub(crate) fn create(mailbox: &Arc<Mailbox>, path: String) -> Token {
+    let flag = Arc::new(SyncFlag::new());
+    let inner = Inner::new(path, Arc::clone(&flag));
+    let cancel = CancelToken {
+        tag_id: inner.id.clone(),
+        sender: mailbox.sender.clone(),
+    };
+    let cell = Arc::clone(&inner.cell);
+    mailbox.post(Message::Enqueue(inner));
+    Token {
+        cell,
+        cancel,
+        mailbox: Arc::clone(mailbox),
+        flag,
+    }
+}
 
 enum Message {
     Enqueue(Inner),
@@ -45,17 +64,6 @@ impl Mailbox {
     #[inline(always)]
     fn post(&self, m: Message) {
         let _ = self.sender.send(m);
-    }
-
-    pub fn create_tag(&self, path: String) -> Token {
-        let inner = Inner::new(path);
-        let cancel = CancelToken {
-            tag_id: inner.id.clone(),
-            sender: self.sender.clone(),
-        };
-        let cell = Arc::clone(&inner.cell);
-        self.post(Message::Enqueue(inner));
-        Token { cell, cancel }
     }
 }
 
@@ -170,11 +178,12 @@ struct Inner {
     tag: Option<RawTag>,
     /// final value holder
     cell: Arc<OnceCell<RawTag>>,
+    flag: Arc<SyncFlag>,
 }
 
 impl Inner {
     #[inline(always)]
-    fn new(path: String) -> Self {
+    fn new(path: String, flag: Arc<SyncFlag>) -> Self {
         Self {
             id: Uuid::new_v4(),
             path,
@@ -183,6 +192,7 @@ impl Inner {
             next_retry_time: Instant::now() - Duration::from_secs(1),
             tag: None,
             cell: Arc::new(Default::default()),
+            flag,
         }
     }
 
@@ -232,7 +242,9 @@ impl Inner {
     #[inline(always)]
     fn set_result(&self, tag: RawTag) {
         trace!("tag[{}] initialization ok: {:?}", self.id, &tag,);
-        let _ = self.cell.set(tag);
+        if self.cell.set(tag).is_ok() {
+            self.flag.fire();
+        }
     }
     #[inline(always)]
     fn on_error(&mut self) {
@@ -261,6 +273,9 @@ impl CancelToken {
 pub(crate) struct Token {
     cell: Arc<OnceCell<RawTag>>,
     cancel: CancelToken,
+    /// keep ref of mailbox, so background worker does not get dropped
+    mailbox: Arc<Mailbox>,
+    flag: Arc<SyncFlag>,
 }
 
 impl Token {
@@ -269,6 +284,18 @@ impl Token {
         match self.cell.get() {
             Some(v) => Ok(v),
             None => Err(Status::Pending),
+        }
+    }
+    #[inline(always)]
+    pub fn wait(&self, timeout: Option<Duration>) -> bool {
+        if self.cell.get().is_some() {
+            return true;
+        }
+        if let Some(timeout) = timeout {
+            self.flag.wait_timeout(timeout)
+        } else {
+            self.flag.wait();
+            true
         }
     }
 }
