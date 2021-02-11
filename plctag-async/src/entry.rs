@@ -8,6 +8,7 @@ use std::{
 
 use futures::channel::oneshot;
 use mailbox::Token;
+use parking_lot::Mutex;
 use plctag::{event::Event, Accessor};
 use plctag_sys as ffi;
 use tokio::sync::Notify;
@@ -161,7 +162,7 @@ impl<'a> Operation<'a> {
                     Event::Destroyed => (),
                     _ => return,
                 }
-                //interested
+                //thread-safe to call Option::take(), because listener callbacks was protected by mutex
                 tx.take().map(|tx| {
                     let _ = tx.send(status);
                 });

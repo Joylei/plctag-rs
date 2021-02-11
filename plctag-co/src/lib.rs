@@ -21,7 +21,6 @@ use std::{
     fmt::{self, Display},
     sync::Arc,
 };
-use uuid::Uuid;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

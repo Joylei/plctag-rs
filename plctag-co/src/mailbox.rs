@@ -2,14 +2,14 @@ use may::{
     coroutine as co,
     sync::{
         mpsc::{Receiver, Sender},
-        AtomicOption, SyncFlag,
+        SyncFlag,
     },
 };
 use once_cell::sync::OnceCell;
 
 use std::{
     collections::HashMap,
-    ops::{Add, Index},
+    ops::Add,
     sync::{mpsc::TryRecvError, Arc},
     time::{Duration, Instant},
 };
@@ -18,23 +18,18 @@ use uuid::Uuid;
 //use crate::event;
 use plctag::{RawTag, Result, Status};
 
-use plctag_sys as ffi;
-
 pub(crate) fn create(mailbox: &Arc<Mailbox>, path: String) -> Token {
     let flag = Arc::new(SyncFlag::new());
     let inner = Inner::new(path, Arc::clone(&flag));
-    let cancel = CancelToken {
-        tag_id: inner.id.clone(),
-        sender: mailbox.sender.clone(),
-    };
     let cell = Arc::clone(&inner.cell);
-    mailbox.post(Message::Enqueue(inner));
-    Token {
+    let token = Token {
+        id: inner.id.clone(),
         cell,
-        cancel,
         mailbox: Arc::clone(mailbox),
         flag,
-    }
+    };
+    mailbox.post(Message::Enqueue(inner));
+    token
 }
 
 enum Message {
@@ -255,24 +250,10 @@ impl Inner {
     }
 }
 
-/// used to cancel tag initialization
-#[derive(Clone)]
-struct CancelToken {
-    tag_id: Uuid,
-    sender: Sender<Message>,
-}
-
-impl CancelToken {
-    #[inline(always)]
-    fn cancel(&self) {
-        let _ = self.sender.send(Message::Remove(self.tag_id));
-    }
-}
-
 #[derive(Clone)]
 pub(crate) struct Token {
+    id: Uuid,
     cell: Arc<OnceCell<RawTag>>,
-    cancel: CancelToken,
     /// keep ref of mailbox, so background worker does not get dropped
     mailbox: Arc<Mailbox>,
     flag: Arc<SyncFlag>,
@@ -303,6 +284,6 @@ impl Token {
 impl Drop for Token {
     #[inline(always)]
     fn drop(&mut self) {
-        self.cancel.cancel();
+        self.mailbox.post(Message::Remove(self.id))
     }
 }

@@ -1,11 +1,8 @@
-use std::{
-    sync::{Arc, Weak},
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use crate::*;
 
-use mailbox::{Mailbox, Token};
+use mailbox::Token;
 use may::sync::Blocker;
 use once_cell::sync::OnceCell;
 use plctag::event::Event;
@@ -112,13 +109,44 @@ impl<'a> Operation<'a> {
     }
 
     fn run(&mut self, rw: bool) -> Result<()> {
+        struct Parker {
+            cell: Arc<OnceCell<Status>>,
+            blocker: Arc<Blocker>,
+        }
+
+        impl Parker {
+            fn new() -> Self {
+                let blocker = Blocker::current();
+                let cell = Arc::new(OnceCell::new());
+                Self { cell, blocker }
+            }
+            fn park(&self) -> Result<Status> {
+                self.blocker.park(None)?;
+                let v = self.cell.get().unwrap();
+                Ok(*v)
+            }
+
+            fn unpark(&self, val: Status) {
+                if self.cell.set(val).is_ok() {
+                    self.blocker.unpark();
+                }
+            }
+        }
+
+        impl Clone for Parker {
+            fn clone(&self) -> Self {
+                Self {
+                    cell: Arc::clone(&self.cell),
+                    blocker: Arc::clone(&self.blocker),
+                }
+            }
+        }
+
         let tag = self.token.get()?;
         self.status = Status::Pending;
-        let blocker = Blocker::current();
-        let cell = Arc::new(OnceCell::new());
+        let parker = Parker::new();
         let removal = {
-            let blocker = Arc::clone(&blocker);
-            let cell = Arc::clone(&cell);
+            let parker = parker.clone();
             tag.listen(move |evt, status| {
                 //TODO: check status
                 match evt {
@@ -129,9 +157,7 @@ impl<'a> Operation<'a> {
                     _ => return,
                 }
                 //interested
-                if cell.set(status).is_ok() {
-                    blocker.unpark();
-                }
+                parker.unpark(status.into());
             })
             .manual(false)
             .on()
@@ -141,8 +167,7 @@ impl<'a> Operation<'a> {
         if status.is_err() {
             status.into_result()?;
         } else if status.is_pending() {
-            blocker.park(None)?;
-            let status = *cell.get().unwrap();
+            let status = parker.park()?;
             self.status = status;
             status.into_result()?;
         }

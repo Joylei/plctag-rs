@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use std::{ffi::CString, thread};
 
 #[cfg(feature = "event")]
-use crate::event::{Arc, Event, EventEmitter, ListenerBuilder};
+use crate::event::{register, Event, Handle, ListenerBuilder, Token};
 
 /// wrapper of tag model based on `libplctag`
 #[derive(Debug)]
@@ -13,7 +13,7 @@ pub struct RawTag {
     #[cfg(not(feature = "event"))]
     tag_id: i32,
     #[cfg(feature = "event")]
-    inner: Arc<EventEmitter>,
+    inner: Token,
 }
 
 impl RawTag {
@@ -35,12 +35,16 @@ impl RawTag {
         if tag_id < 0 {
             return Err(Status::new(ffi::PLCTAG_ERR_CREATE).into());
         }
-        Ok(Self {
-            #[cfg(not(feature = "event"))]
-            tag_id,
-            #[cfg(feature = "event")]
-            inner: EventEmitter::new(tag_id),
-        })
+        #[cfg(not(feature = "event"))]
+        {
+            Ok(Self { tag_id })
+        }
+
+        #[cfg(feature = "event")]
+        {
+            let token = register(tag_id, true);
+            Ok(Self { inner: token })
+        }
     }
 
     /// tag id in `libplctag`.
@@ -57,7 +61,7 @@ impl RawTag {
         }
         #[cfg(feature = "event")]
         {
-            self.inner.tag_id()
+            self.inner.id()
         }
     }
 

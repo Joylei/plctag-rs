@@ -1,16 +1,59 @@
+use fmt::Debug;
 use parking_lot::Mutex;
 use plctag_sys as ffi;
 use std::{
     collections::{HashMap, HashSet},
     fmt,
     hash::Hash,
+    ops::Deref,
     panic,
-    sync::{atomic::AtomicUsize, Weak},
+    sync::atomic::AtomicUsize,
+    time::Instant,
 };
 
-pub(crate) use std::sync::Arc;
-
 use crate::{status, Status};
+
+/// register tag for receiving events
+pub(crate) fn register(tag_id: i32, reg_cb: bool) -> Token {
+    let token = Token(Handle::new(tag_id));
+    let emitter = EventEmitter::new(token.0.clone());
+    EVENTS.add(emitter);
+
+    if reg_cb {
+        let rc = unsafe { ffi::plc_tag_register_callback(tag_id, Some(on_event)) };
+        debug_assert!(rc == status::PLCTAG_STATUS_OK);
+    }
+    token
+}
+
+/// ensures that EventEmitter gets removed
+#[derive(Debug)]
+pub(crate) struct Token(Handle);
+
+impl Drop for Token {
+    fn drop(&mut self) {
+        // let rc = unsafe { ffi::plc_tag_unregister_callback(self.id) };
+        // debug_assert!(rc == status::PLCTAG_STATUS_OK);
+        EVENTS.remove(self.id);
+    }
+}
+
+impl Token {
+    #[inline(always)]
+    pub(crate) fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
+    where
+        F: FnMut(Event, Status) + Send + 'static,
+    {
+        ListenerBuilder::new(&self.0, f)
+    }
+}
+
+impl Deref for Token {
+    type Target = Handle;
+    fn deref(&self) -> &Handle {
+        &self.0
+    }
+}
 
 /// event type
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -128,16 +171,16 @@ impl From<Event> for i32 {
 /// //here, listener removed <=
 /// ```
 pub struct ListenerBuilder<'a, F: FnMut(Event, Status) + Send + 'static> {
-    emitter: &'a Arc<EventEmitter>,
+    handle: &'a Handle,
     manual: bool,
     handler: HandlerImpl<F>,
 }
 
 impl<'a, F: FnMut(Event, Status) + Send + 'static> ListenerBuilder<'a, F> {
     #[inline(always)]
-    pub(crate) fn new(emitter: &'a Arc<EventEmitter>, f: F) -> Self {
+    pub(crate) fn new(handle: &'a Handle, f: F) -> Self {
         Self {
-            emitter,
+            handle,
             manual: true,
             handler: HandlerImpl::new(f),
         }
@@ -167,7 +210,13 @@ impl<'a, F: FnMut(Event, Status) + Send + 'static> ListenerBuilder<'a, F> {
 
     #[inline(always)]
     pub fn on(self) -> Listener {
-        self.emitter.add(self.handler, self.manual)
+        // ref key ensures token on the stack,
+        // so does EventEmitter, it's safe to call unwrap()
+        EVENTS
+            .with(self.handle.id, |emitter| {
+                emitter.add(self.handler, self.manual)
+            })
+            .unwrap()
     }
 }
 
@@ -231,7 +280,7 @@ impl<F: FnMut(Event, Status) + Send + 'static> Handler for HandlerImpl<F> {
 /// event listener, see [`ListenerBuilder`] for usage.
 pub struct Listener {
     id: usize,
-    inner: Option<Weak<EventEmitter>>,
+    handle: Option<Handle>,
     manual: bool,
 }
 
@@ -246,15 +295,19 @@ impl Listener {
     /// off() has been called or not
     #[inline(always)]
     fn called(&self) -> bool {
-        self.inner.is_some()
+        self.handle.is_some()
     }
+
     #[inline(always)]
     fn remove_listener(&mut self) {
-        self.inner
-            .take()
-            .map(|src| Weak::upgrade(&src))
-            .flatten()
-            .map(|src| src.remove(self.id));
+        self.handle.take().map(|handle| {
+            EVENTS.with(handle.id, |emitter| {
+                //lazily remove, tag id might be reused, check key
+                if emitter.handle.eq(&handle) {
+                    emitter.remove(self.id)
+                }
+            });
+        });
     }
 }
 
@@ -267,56 +320,42 @@ impl Drop for Listener {
     }
 }
 
-/// for testing purpose
-static mut TAG_INSTALL: bool = true;
-
-#[inline(always)]
-fn can_install() -> bool {
-    unsafe { TAG_INSTALL }
-}
-
-#[inline(always)]
-fn set_install(val: bool) {
-    if can_install() != val {
-        unsafe { TAG_INSTALL = val };
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct EventEmitter {
-    tag_id: i32,
+    handle: Handle,
     gen: AtomicUsize,
     map: Mutex<HashMap<usize, Box<dyn Handler + Send + 'static>>>,
 }
 
 impl EventEmitter {
     #[inline(always)]
-    pub fn new(tag_id: i32) -> Arc<Self> {
-        Arc::new(Self {
-            tag_id,
+    pub fn new(handle: Handle) -> Self {
+        Self {
+            handle,
             gen: AtomicUsize::new(0),
             map: Mutex::new(HashMap::new()),
-        })
+        }
     }
 }
 
 impl EventEmitter {
     #[inline(always)]
     pub(crate) fn tag_id(&self) -> i32 {
-        self.tag_id
+        self.handle.id().clone()
+    }
+
+    #[inline(always)]
+    pub(crate) fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
+    where
+        F: Fn(Event, Status) + Send + 'static,
+    {
+        ListenerBuilder::new(&self.handle, f)
     }
 
     #[inline(always)]
     fn remove(&self, id: usize) {
         let map = &mut *self.map.lock();
         map.remove(&id);
-        if map.len() == 0 {
-            EVENTS.remove(self.tag_id);
-            if can_install() {
-                let rc = unsafe { ffi::plc_tag_unregister_callback(self.tag_id()) };
-                assert!(rc == status::PLCTAG_STATUS_OK);
-            }
-        }
     }
 
     #[inline(always)]
@@ -325,38 +364,16 @@ impl EventEmitter {
     }
 
     #[inline(always)]
-    pub(crate) fn listen<'a, F>(self: &'a Arc<Self>, f: F) -> ListenerBuilder<'a, F>
-    where
-        F: FnMut(Event, Status) + Send + 'static,
-    {
-        ListenerBuilder::new(&self, f)
-    }
-
-    #[inline(always)]
-    pub(crate) fn add(
-        self: &Arc<Self>,
-        handler: impl Handler + Send + 'static,
-        manual: bool,
-    ) -> Listener {
+    pub(crate) fn add(&self, handler: impl Handler + Send + 'static, manual: bool) -> Listener {
         let id = self.next_id();
         {
             let map = &mut *self.map.lock();
             map.insert(id, Box::new(handler));
-            let install = map.len() == 1;
-            //only install if len() changed from 0 to 1
-            if install {
-                EVENTS.add(self);
-                if can_install() {
-                    let rc =
-                        unsafe { ffi::plc_tag_register_callback(self.tag_id(), Some(on_event)) };
-                    assert!(rc == status::PLCTAG_STATUS_OK);
-                }
-            }
         }
 
         Listener {
             id,
-            inner: Some(Arc::downgrade(self)),
+            handle: Some(self.handle.clone()),
             manual,
         }
     }
@@ -370,14 +387,31 @@ impl EventEmitter {
     }
 }
 
-impl Drop for EventEmitter {
-    #[inline(always)]
-    fn drop(&mut self) {
-        EVENTS.remove(self.tag_id);
+/// resource handle
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct Handle {
+    id: i32,
+    time: Instant,
+}
+
+impl Handle {
+    pub(crate) fn new(id: i32) -> Self {
+        Self {
+            id,
+            time: Instant::now(),
+        }
+    }
+
+    pub(crate) fn id(&self) -> i32 {
+        self.id
+    }
+
+    pub(crate) fn time(&self) -> Instant {
+        self.time
     }
 }
 
-struct EventRegistry(Mutex<HashMap<i32, Weak<EventEmitter>>>);
+struct EventRegistry(Mutex<HashMap<i32, EventEmitter>>);
 
 impl EventRegistry {
     #[inline(always)]
@@ -392,9 +426,8 @@ impl EventRegistry {
     }
 
     #[inline(always)]
-    fn add(&self, item: &Arc<EventEmitter>) {
-        let tag_id = item.tag_id;
-        let item = Arc::downgrade(item);
+    fn add(&self, item: EventEmitter) {
+        let tag_id = item.tag_id();
         let map = &mut *self.0.lock();
         map.insert(tag_id, item);
     }
@@ -406,16 +439,15 @@ impl EventRegistry {
     }
 
     #[inline(always)]
-    fn get(&self, tag_id: i32) -> Option<Arc<EventEmitter>> {
-        let map = &*self.0.lock();
-        map.get(&tag_id).map(|h| Weak::upgrade(h)).flatten()
+    fn with<F: FnOnce(&mut EventEmitter) -> R, R>(&self, tag_id: i32, f: F) -> Option<R> {
+        let map = &mut *self.0.lock();
+        map.get_mut(&tag_id).map(f)
     }
 
     #[inline]
-    fn dispatch(&self, tag_id: i32, event: i32, status: i32) {
-        if let Some(handle) = self.get(tag_id) {
-            handle.emit(event.into(), status.into());
-        }
+    fn dispatch(&self, tag_id: i32, event: i32, status: i32) -> bool {
+        self.with(tag_id, |emitter| emitter.emit(event.into(), status.into()))
+            .is_some()
     }
 }
 
@@ -424,12 +456,15 @@ lazy_static! {
 }
 
 unsafe extern "C" fn on_event(tag_id: i32, event: i32, status: i32) {
-    EVENTS.dispatch(tag_id, event, status)
+    EVENTS.dispatch(tag_id, event, status);
 }
 
 #[cfg(test)]
 mod test {
-    use std::sync::atomic::{AtomicI32, Ordering};
+    use std::sync::{
+        atomic::{AtomicI32, Ordering},
+        Arc,
+    };
 
     use super::*;
     struct Holder {
@@ -464,42 +499,13 @@ mod test {
     }
 
     #[test]
-    fn test_on_off() {
-        set_install(false);
-        let holder = Arc::new(Holder::new());
-
-        let emitter = EventEmitter::new(0);
-
-        let holder1 = Arc::clone(&holder);
-        let token1 = emitter
-            .listen(move |e, s| {
-                holder1.inc_count();
-            })
-            .event(Event::ReadCompleted)
-            .manual(true)
-            .on();
-
-        assert!(EVENTS.len() > 0);
-
-        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
-        assert!(holder.count() == 1);
-
-        token1.off();
-
-        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
-        assert!(holder.count() == 1);
-    }
-
-    #[test]
     fn test_multiple() {
-        set_install(false);
-
         let holder = Arc::new(Holder::new());
 
-        let emitter = EventEmitter::new(0);
+        let token = register(1, false);
 
         let holder1 = Arc::clone(&holder);
-        let token1 = emitter
+        let handler1 = token
             .listen(move |e, s| {
                 holder1.set_event(e);
             })
@@ -507,7 +513,7 @@ mod test {
             .manual(true)
             .on();
         let holder2 = Arc::clone(&holder);
-        let token2 = emitter
+        let handler2 = token
             .listen(move |e, s| {
                 holder2.inc_count();
             })
@@ -515,27 +521,23 @@ mod test {
             .manual(true)
             .on();
 
-        assert!(EVENTS.len() > 0);
-
-        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
+        EVENTS.dispatch(1, Event::ReadCompleted.into(), 0);
 
         assert_eq!(holder.count(), 1);
         assert_eq!(holder.event(), Event::ReadCompleted);
 
-        EVENTS.dispatch(0, Event::WriteCompleted.into(), 0);
-
+        EVENTS.dispatch(1, Event::WriteCompleted.into(), 0);
         assert_eq!(holder.count(), 2);
-        assert_eq!(holder.event(), Event::ReadCompleted);
 
-        token1.off();
+        handler1.off();
 
-        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
+        EVENTS.dispatch(1, Event::ReadCompleted.into(), 0);
         assert_eq!(holder.count(), 3);
         assert_eq!(holder.event(), Event::ReadCompleted);
 
-        token2.off();
+        handler2.off();
 
-        EVENTS.dispatch(0, Event::ReadCompleted.into(), 0);
+        EVENTS.dispatch(1, Event::ReadCompleted.into(), 0);
         assert_eq!(holder.count(), 3);
         assert_eq!(holder.event(), Event::ReadCompleted);
     }

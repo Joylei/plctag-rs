@@ -1,21 +1,18 @@
 extern crate futures;
-#[macro_use]
-extern crate lazy_static;
 extern crate plctag;
 extern crate tokio;
 #[macro_use]
 extern crate log;
 use mailbox::Mailbox;
-use oneshot::error::RecvError;
 pub use plctag::{RawTag, Status, TagValue};
 use std::{
     fmt::{self, Display},
     sync::Arc,
 };
 use task::JoinError;
-use tokio::{sync::oneshot, task};
+use tokio::task;
+mod cell;
 mod entry;
-//mod event;
 mod mailbox;
 
 pub use entry::TagEntry;
@@ -56,12 +53,6 @@ impl From<Status> for Error {
 impl From<JoinError> for Error {
     fn from(e: JoinError) -> Self {
         Error::TaskError(e)
-    }
-}
-
-impl From<RecvError> for Error {
-    fn from(e: RecvError) -> Self {
-        Error::RecvError
     }
 }
 
