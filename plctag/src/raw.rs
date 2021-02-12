@@ -385,7 +385,7 @@ impl RawTag {
     #[inline(always)]
     pub fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
     where
-        F: FnMut(Event, Status) + Send + 'static,
+        F: FnMut(Event, Status) + Send + Sync + 'static,
     {
         self.inner.listen(f)
     }

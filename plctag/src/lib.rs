@@ -1,6 +1,5 @@
 #[cfg(feature = "event")]
-#[macro_use]
-extern crate lazy_static;
+extern crate once_cell;
 #[cfg(feature = "event")]
 extern crate parking_lot;
 extern crate plctag_sys;

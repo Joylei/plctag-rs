@@ -1,5 +1,6 @@
 use fmt::Debug;
-use parking_lot::Mutex;
+use once_cell::sync::Lazy;
+use parking_lot::{Mutex, RwLock};
 use plctag_sys as ffi;
 use std::{
     collections::{HashMap, HashSet},
@@ -42,7 +43,7 @@ impl Token {
     #[inline(always)]
     pub(crate) fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
     where
-        F: FnMut(Event, Status) + Send + 'static,
+        F: FnMut(Event, Status) + Send + Sync + 'static,
     {
         ListenerBuilder::new(&self.0, f)
     }
@@ -170,13 +171,13 @@ impl From<Event> for i32 {
 /// }
 /// //here, listener removed <=
 /// ```
-pub struct ListenerBuilder<'a, F: FnMut(Event, Status) + Send + 'static> {
+pub struct ListenerBuilder<'a, F: FnMut(Event, Status) + Send + Sync + 'static> {
     handle: &'a Handle,
     manual: bool,
     handler: HandlerImpl<F>,
 }
 
-impl<'a, F: FnMut(Event, Status) + Send + 'static> ListenerBuilder<'a, F> {
+impl<'a, F: FnMut(Event, Status) + Send + Sync + 'static> ListenerBuilder<'a, F> {
     #[inline(always)]
     pub(crate) fn new(handle: &'a Handle, f: F) -> Self {
         Self {
@@ -224,12 +225,12 @@ pub(crate) trait Handler: fmt::Debug {
     fn invoke(&mut self, evt: Event, status: Status);
 }
 
-struct HandlerImpl<F: FnMut(Event, Status) + Send + 'static> {
+struct HandlerImpl<F: FnMut(Event, Status) + Send + Sync + 'static> {
     interest: Option<HashSet<Event>>,
     cb: F,
 }
 
-impl<F: FnMut(Event, Status) + Send + 'static> fmt::Debug for HandlerImpl<F> {
+impl<F: FnMut(Event, Status) + Send + Sync + 'static> fmt::Debug for HandlerImpl<F> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Handler")
             .field("interest", &self.interest)
@@ -237,7 +238,7 @@ impl<F: FnMut(Event, Status) + Send + 'static> fmt::Debug for HandlerImpl<F> {
     }
 }
 
-impl<F: FnMut(Event, Status) + Send + 'static> HandlerImpl<F> {
+impl<F: FnMut(Event, Status) + Send + Sync + 'static> HandlerImpl<F> {
     #[inline(always)]
     fn new(cb: F) -> Self {
         Self { interest: None, cb }
@@ -268,7 +269,7 @@ impl<F: FnMut(Event, Status) + Send + 'static> HandlerImpl<F> {
     }
 }
 
-impl<F: FnMut(Event, Status) + Send + 'static> Handler for HandlerImpl<F> {
+impl<F: FnMut(Event, Status) + Send + Sync + 'static> Handler for HandlerImpl<F> {
     #[inline(always)]
     fn invoke(&mut self, evt: Event, status: Status) {
         if self.interested(evt) {
@@ -324,7 +325,7 @@ impl Drop for Listener {
 pub(crate) struct EventEmitter {
     handle: Handle,
     gen: AtomicUsize,
-    map: Mutex<HashMap<usize, Box<dyn Handler + Send + 'static>>>,
+    map: Mutex<HashMap<usize, Box<dyn Handler + Send + Sync + 'static>>>,
 }
 
 impl EventEmitter {
@@ -347,7 +348,7 @@ impl EventEmitter {
     #[inline(always)]
     pub(crate) fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
     where
-        F: Fn(Event, Status) + Send + 'static,
+        F: Fn(Event, Status) + Send + Sync + 'static,
     {
         ListenerBuilder::new(&self.handle, f)
     }
@@ -364,7 +365,11 @@ impl EventEmitter {
     }
 
     #[inline(always)]
-    pub(crate) fn add(&self, handler: impl Handler + Send + 'static, manual: bool) -> Listener {
+    pub(crate) fn add(
+        &self,
+        handler: impl Handler + Send + Sync + 'static,
+        manual: bool,
+    ) -> Listener {
         let id = self.next_id();
         {
             let map = &mut *self.map.lock();
@@ -411,38 +416,44 @@ impl Handle {
     }
 }
 
-struct EventRegistry(Mutex<HashMap<i32, EventEmitter>>);
+struct EventRegistry(RwLock<HashMap<i32, EventEmitter>>);
 
 impl EventRegistry {
     #[inline(always)]
     fn new() -> Self {
-        EventRegistry(Mutex::new(HashMap::new()))
+        EventRegistry(RwLock::new(HashMap::new()))
     }
 
     #[inline(always)]
     fn len(&self) -> usize {
-        let map = &*self.0.lock();
+        let map = &*self.0.read();
         map.len()
     }
 
     #[inline(always)]
     fn add(&self, item: EventEmitter) {
         let tag_id = item.tag_id();
-        let map = &mut *self.0.lock();
+        let map = &mut *self.0.write();
         map.insert(tag_id, item);
     }
 
     #[inline(always)]
     fn remove(&self, tag_id: i32) {
-        let map = &mut *self.0.lock();
+        let map = &mut *self.0.write();
         map.remove(&tag_id);
     }
 
     #[inline(always)]
-    fn with<F: FnOnce(&mut EventEmitter) -> R, R>(&self, tag_id: i32, f: F) -> Option<R> {
-        let map = &mut *self.0.lock();
-        map.get_mut(&tag_id).map(f)
+    fn with<F: FnOnce(&EventEmitter) -> R, R>(&self, tag_id: i32, f: F) -> Option<R> {
+        let map = &*self.0.read();
+        map.get(&tag_id).map(f)
     }
+
+    // #[inline(always)]
+    // fn with_write<F: FnOnce(&mut EventEmitter) -> R, R>(&self, tag_id: i32, f: F) -> Option<R> {
+    //     let map = &mut*self.0.write();
+    //     map.get_mut(&tag_id).map(f)
+    // }
 
     #[inline]
     fn dispatch(&self, tag_id: i32, event: i32, status: i32) -> bool {
@@ -451,9 +462,7 @@ impl EventRegistry {
     }
 }
 
-lazy_static! {
-    static ref EVENTS: EventRegistry = EventRegistry::new();
-}
+static EVENTS: Lazy<EventRegistry> = Lazy::new(|| EventRegistry::new());
 
 unsafe extern "C" fn on_event(tag_id: i32, event: i32, status: i32) {
     EVENTS.dispatch(tag_id, event, status);

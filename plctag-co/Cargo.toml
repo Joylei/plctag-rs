@@ -8,7 +8,6 @@ edition = "2018"
 plctag-sys = { path = "../plctag-sys" }
 plctag = { path = "../plctag" }
 log = "*"
-lazy_static = "*"
 may = "*"
 parking_lot = "*"
 once_cell = "*"

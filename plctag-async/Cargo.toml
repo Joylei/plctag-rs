@@ -12,9 +12,8 @@ plctag = { path = "../plctag" }
 parking_lot = "*"
 tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "time", "sync"] }
 uuid = { version = "*", features = ["v4"] }
-futures = { version = "*" }
+futures = { version = "*", default-features = false, features = ["std"] }
 log = "*"
-lazy_static = "*"
 
 [dev-dependencies]
 anyhow = "*"
