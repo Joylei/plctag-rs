@@ -400,17 +400,18 @@ pub struct Handle {
 }
 
 impl Handle {
+    #[inline(always)]
     pub(crate) fn new(id: i32) -> Self {
         Self {
             id,
             time: Instant::now(),
         }
     }
-
+    #[inline(always)]
     pub(crate) fn id(&self) -> i32 {
         self.id
     }
-
+    #[inline(always)]
     pub(crate) fn time(&self) -> Instant {
         self.time
     }
