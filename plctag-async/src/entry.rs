@@ -37,6 +37,7 @@ impl<O: TagOptions> TagEntry<O> {
         self.token.wait().await
     }
 
+    /// see [`TagOptions::key()`]
     #[inline(always)]
     pub fn key(&self) -> &str {
         self.opts.key()
@@ -56,16 +57,19 @@ impl<O: TagOptions> TagEntry<O> {
         .await
     }
 
+    /// tag size in bytes
     #[inline(always)]
     pub async fn size(&self) -> Result<u32> {
         self.with_tag(|tag| tag.size()).await
     }
 
+    /// element count
     #[inline(always)]
     pub async fn elem_size(&self) -> Result<i32> {
         self.with_tag(|tag| tag.elem_size()).await
     }
 
+    /// element size
     #[inline(always)]
     pub async fn elem_count(&self) -> Result<i32> {
         self.with_tag(|tag| tag.elem_count()).await

@@ -78,9 +78,9 @@ use std::{
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// tag options;
-/// impl Display to returns the platag required path
+/// impl Display to returns `libplatag` required path
 pub trait TagOptions: Display {
-    /// unique key
+    /// unique key to distinguish your tags
     fn key(&self) -> &str;
 }
 

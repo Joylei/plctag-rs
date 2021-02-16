@@ -145,7 +145,7 @@ impl RawTag {
         Status::new(rc)
     }
 
-    ///Get the size in bytes used by the tag
+    /// tag size in bytes
     #[inline(always)]
     pub fn size(&self) -> Result<u32> {
         let value = unsafe { ffi::plc_tag_get_size(self.id()) };

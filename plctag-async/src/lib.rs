@@ -122,9 +122,9 @@ use std::result::Result as std_result;
 pub type Result<T> = std_result<T, Error>;
 
 /// tag options;
-/// impl Display to returns the platag required path
+/// impl Display to returns `libplctag` required path
 pub trait TagOptions: Display {
-    /// unique key
+    /// unique key to distinguish your tags
     fn key(&self) -> &str;
 }
 

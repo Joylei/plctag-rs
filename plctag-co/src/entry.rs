@@ -17,24 +17,29 @@ impl<O: TagOptions> TagEntry<O> {
         Self { opts, token }
     }
 
+    /// see [`TagOptions::key()`]
     #[inline(always)]
     pub fn key(&self) -> &str {
         self.opts.key()
     }
 
-    /// tag value size in bytes
+    /// tag size in bytes
     #[inline(always)]
     pub fn size(&self) -> Result<u32> {
         let tag = self.token.get()?;
         let v = tag.size()?;
         Ok(v)
     }
+
+    /// element size
     #[inline(always)]
     pub fn elem_size(&self) -> Result<i32> {
         let tag = self.token.get()?;
         let v = tag.get_attr("elem_size", 0)?;
         Ok(v)
     }
+
+    /// element count
     #[inline(always)]
     pub fn elem_count(&self) -> Result<i32> {
         let tag = self.token.get()?;
