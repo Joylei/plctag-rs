@@ -21,7 +21,7 @@ impl fmt::Display for MyTagOptions{
 fn main(){
     let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 
-    let rt = runtime::Runtime::new().unwrap()?;
+    let rt = runtime::Runtime::new().unwrap();
     rt.block_on(async {
         let factory = TagFactory::new();
         let opts = MyTagOptions {
