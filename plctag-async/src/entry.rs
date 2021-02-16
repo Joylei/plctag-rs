@@ -1,17 +1,6 @@
-use std::{
-    cell::UnsafeCell,
-    future::Future,
-    pin::Pin,
-    sync::atomic::{AtomicBool, AtomicUsize},
-    task::{Context, Poll},
-};
-
 use futures::channel::oneshot;
 use mailbox::Token;
-use parking_lot::Mutex;
 use plctag::{event::Event, Accessor};
-use plctag_sys as ffi;
-use tokio::sync::Notify;
 
 use crate::*;
 

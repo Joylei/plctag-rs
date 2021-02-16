@@ -78,7 +78,7 @@ impl TagFactory {
         }
     }
 
-    /// create tag. When tag created, will connect automatically in the background forever
+    /// create tag. When tag created, will connect automatically in the background until connected
     #[inline]
     async fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
         let path = opts.to_string();
@@ -88,6 +88,7 @@ impl TagFactory {
 }
 
 impl Default for TagFactory {
+    #[inline(always)]
     fn default() -> Self {
         Self::new()
     }

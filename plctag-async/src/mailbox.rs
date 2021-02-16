@@ -33,6 +33,7 @@ pub(crate) struct Token {
 }
 
 impl Token {
+    #[inline(always)]
     pub fn get(&self) -> plctag::Result<&RawTag> {
         match self.cell.get() {
             Some(v) => Ok(v),
@@ -41,6 +42,7 @@ impl Token {
     }
 
     /// wait for ready
+    #[inline(always)]
     pub async fn wait(&self) {
         let cell = self.cell.clone();
         cell.await
@@ -48,6 +50,7 @@ impl Token {
 }
 
 impl Drop for Token {
+    #[inline(always)]
     fn drop(&mut self) {
         self.mailbox.try_post(Message::Remove(self.id));
     }

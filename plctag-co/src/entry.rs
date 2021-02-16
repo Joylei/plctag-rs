@@ -115,17 +115,19 @@ impl<'a> Operation<'a> {
         }
 
         impl Parker {
+            #[inline(always)]
             fn new() -> Self {
                 let blocker = Blocker::current();
                 let cell = Arc::new(OnceCell::new());
                 Self { cell, blocker }
             }
+            #[inline(always)]
             fn park(&self) -> Result<Status> {
                 self.blocker.park(None)?;
                 let v = self.cell.get().unwrap();
                 Ok(*v)
             }
-
+            #[inline(always)]
             fn unpark(&self, val: Status) {
                 if self.cell.set(val).is_ok() {
                     self.blocker.unpark();
@@ -134,6 +136,7 @@ impl<'a> Operation<'a> {
         }
 
         impl Clone for Parker {
+            #[inline(always)]
             fn clone(&self) -> Self {
                 Self {
                     cell: Arc::clone(&self.cell),

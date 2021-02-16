@@ -18,6 +18,7 @@ use uuid::Uuid;
 //use crate::event;
 use plctag::{RawTag, Result, Status};
 
+#[inline]
 pub(crate) fn create(mailbox: &Arc<Mailbox>, path: String) -> Token {
     let flag = Arc::new(SyncFlag::new());
     let inner = Inner::new(path, Arc::clone(&flag));

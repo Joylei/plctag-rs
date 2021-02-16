@@ -51,6 +51,7 @@ impl TagFactory {
 }
 
 impl Default for TagFactory {
+    #[inline(always)]
     fn default() -> Self {
         Self::new()
     }

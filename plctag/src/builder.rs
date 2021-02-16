@@ -171,7 +171,7 @@ impl PathBuilder {
                 //TODO: check gateway, either ip or host name
                 //check plc, required
                 if self.plc.is_none() {
-                    return Err(Error("plc required"));
+                    return Err(Error("plc kind required"));
                 }
                 let plc = self.plc.unwrap();
                 if plc == PlcKind::ControlLogix {

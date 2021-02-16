@@ -20,6 +20,7 @@ struct State<T> {
 }
 
 impl<T> State<T> {
+    #[inline(always)]
     fn new() -> Self {
         Self {
             state: AtomicUsize::new(0),
@@ -63,7 +64,7 @@ impl<T> State<T> {
             return true;
         }
     }
-
+    #[inline(always)]
     fn is_set(&self) -> bool {
         let state = self.state.load(Ordering::Acquire);
         state & STATE_VALUE_SET == STATE_VALUE_SET
@@ -101,7 +102,7 @@ impl<T> State<T> {
             return true;
         }
     }
-
+    #[inline(always)]
     fn get_unchecked(&self) -> Option<&T> {
         unsafe {
             let holder = &*self.value.get();
@@ -128,6 +129,7 @@ impl<T> State<T> {
     }
 
     /// unsafe to get ref
+    #[inline(always)]
     fn get_mut(&self) -> Option<&mut T> {
         if self.is_set() {
             unsafe {
@@ -176,34 +178,36 @@ unsafe impl<T: Send> Send for State<T> {}
 unsafe impl<T: Sync> Sync for State<T> {}
 
 impl<T> SyncCell<T> {
+    #[inline(always)]
     pub(crate) fn new() -> Self {
         Self {
             inner: Arc::new(State::new()),
         }
     }
-
+    #[inline(always)]
     pub(crate) fn set(&self, val: T) -> bool {
         self.inner.set(val)
     }
-
+    #[inline(always)]
     fn is_set(&self) -> bool {
         self.inner.is_set()
     }
-
+    #[inline(always)]
     pub(crate) fn get(&self) -> Option<&T> {
         self.inner.get()
     }
-
+    #[inline(always)]
     fn get_mut(&self) -> Option<&mut T> {
         self.inner.get_mut()
     }
-
+    #[inline(always)]
     fn take(self) -> Option<T> {
         self.inner.take()
     }
 }
 
 impl<T> Clone for SyncCell<T> {
+    #[inline(always)]
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
@@ -212,6 +216,7 @@ impl<T> Clone for SyncCell<T> {
 }
 
 impl<T> Default for SyncCell<T> {
+    #[inline(always)]
     fn default() -> Self {
         Self::new()
     }
@@ -219,7 +224,7 @@ impl<T> Default for SyncCell<T> {
 
 impl<T> Future for SyncCell<T> {
     type Output = ();
-
+    #[inline(always)]
     fn poll(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
