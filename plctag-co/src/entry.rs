@@ -44,7 +44,7 @@ impl<O: TagOptions> TagEntry<O> {
 
     /// wait until connected or timeout; returns true if connected, false if timeout
     #[inline(always)]
-    pub fn connected(&self, timeout: Option<Duration>) -> bool {
+    pub fn connect(&self, timeout: Option<Duration>) -> bool {
         self.token.wait(timeout)
     }
 
