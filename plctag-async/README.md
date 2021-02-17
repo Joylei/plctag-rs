@@ -22,6 +22,7 @@ You're OK to build your project.
  ```rust
 use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
 use tokio::runtime;
+use std::fmt;
 
 struct MyTagOptions {
     pub key: String,

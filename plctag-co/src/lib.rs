@@ -19,6 +19,8 @@
 //!
 //!  ```rust,ignore
 //! use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
+//! use std::fmt;
+//!
 //! struct MyTagOptions {
 //!     pub key: String,
 //!     pub path: String,
