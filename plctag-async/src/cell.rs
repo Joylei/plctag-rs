@@ -43,7 +43,7 @@ impl<T> State<T> {
             //state == 0
             let old = self
                 .state
-                .compare_and_swap(state, state | STATE_LOCKED, Ordering::Release);
+                .compare_and_swap(state, state | STATE_LOCKED, Ordering::AcqRel);
             if old != state {
                 state = old;
                 hint::spin_loop();
@@ -84,7 +84,7 @@ impl<T> State<T> {
             //state == 0
             let old = self
                 .state
-                .compare_and_swap(state, state | STATE_LOCKED, Ordering::Release);
+                .compare_and_swap(state, state | STATE_LOCKED, Ordering::AcqRel);
             if old != state {
                 state = old;
                 hint::spin_loop();
@@ -156,7 +156,7 @@ impl<T> State<T> {
             }
             let old = self
                 .state
-                .compare_and_swap(state, state | STATE_LOCKED, Ordering::Release);
+                .compare_and_swap(state, state | STATE_LOCKED, Ordering::AcqRel);
             if old != state {
                 state = old;
                 hint::spin_loop();
