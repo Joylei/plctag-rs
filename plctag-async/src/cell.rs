@@ -123,51 +123,6 @@ impl<T> State<T> {
             None
         }
     }
-
-    /// unsafe to get ref
-    #[inline(always)]
-    fn get_mut(&self) -> Option<&mut T> {
-        if self.is_set() {
-            unsafe {
-                let holder = &mut *self.value.get();
-                if let Some(ref mut v) = holder {
-                    return Some(v);
-                }
-            }
-        }
-        None
-    }
-
-    /// take value and reset state
-    fn take(&self) -> Option<T> {
-        // only take value if value has been set, otherwise waiting until lock is released
-        let cur = STATE_VALUE_SET;
-        loop {
-            let res = self.state.compare_exchange(
-                cur,
-                cur | STATE_LOCKED,
-                Ordering::AcqRel,
-                Ordering::Acquire,
-            );
-            match res {
-                Ok(_) => {
-                    //locked
-                    let val = unsafe {
-                        (&mut *self.wakers.get()).take();
-                        (&mut *self.value.get()).take()
-                    };
-                    self.state.store(0, Ordering::Release);
-                    return val;
-                }
-                Err(v) if v & STATE_LOCKED == STATE_LOCKED => {
-                    //another thread took lock
-                    hint::spin_loop();
-                    continue;
-                }
-                Err(_) => return None,
-            }
-        }
-    }
 }
 
 unsafe impl<T: Send> Send for State<T> {}
@@ -191,14 +146,6 @@ impl<T> SyncCell<T> {
     #[inline(always)]
     pub(crate) fn get(&self) -> Option<&T> {
         self.inner.get()
-    }
-    #[inline(always)]
-    fn get_mut(&self) -> Option<&mut T> {
-        self.inner.get_mut()
-    }
-    #[inline(always)]
-    fn take(self) -> Option<T> {
-        self.inner.take()
     }
 }
 
