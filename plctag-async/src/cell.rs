@@ -30,38 +30,35 @@ impl<T> State<T> {
     }
 
     fn set(&self, val: T) -> bool {
-        let mut state = self.state.load(Ordering::Acquire);
+        // only set value if value has not been set, otherwise waiting until lock is released
+        let cur = 0;
         loop {
-            if state & STATE_VALUE_SET == STATE_VALUE_SET {
-                return false;
-            }
-            if state & STATE_LOCKED == STATE_LOCKED {
-                state = self.state.load(Ordering::Acquire);
-                hint::spin_loop();
-                continue;
-            }
-            //state == 0
-            let old = self
-                .state
-                .compare_and_swap(state, state | STATE_LOCKED, Ordering::AcqRel);
-            if old != state {
-                state = old;
-                hint::spin_loop();
-                continue;
-            }
-            //locked
-            unsafe {
-                *self.value.get() = Some(val);
-                (&mut *self.wakers.get()).take().map(|mut items| loop {
-                    if let Some(w) = items.pop() {
-                        w.wake()
-                    } else {
-                        break;
+            let res =
+                self.state
+                    .compare_exchange(cur, STATE_LOCKED, Ordering::AcqRel, Ordering::Acquire);
+            match res {
+                Ok(_) => {
+                    //locked
+                    unsafe {
+                        *self.value.get() = Some(val);
+                        (&mut *self.wakers.get()).take().map(|mut items| loop {
+                            if let Some(w) = items.pop() {
+                                w.wake()
+                            } else {
+                                break;
+                            }
+                        });
                     }
-                });
+                    self.state.store(STATE_VALUE_SET, Ordering::Release);
+                    return true;
+                }
+                Err(v) if v & STATE_VALUE_SET == STATE_VALUE_SET => return false,
+                Err(_) => {
+                    //another thread took lock
+                    hint::spin_loop();
+                    continue;
+                }
             }
-            self.state.store(STATE_VALUE_SET, Ordering::Release);
-            return true;
         }
     }
     #[inline(always)]
@@ -71,35 +68,34 @@ impl<T> State<T> {
     }
 
     fn set_waker(&self, waker: &Waker) -> bool {
-        let mut state = self.state.load(Ordering::Acquire);
+        // only set waker on initial state, otherwise waiting until lock is released
+        let initial = 0;
         loop {
-            if state & STATE_VALUE_SET == STATE_VALUE_SET {
-                return false;
+            let res = self.state.compare_exchange(
+                initial,
+                STATE_LOCKED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            );
+            match res {
+                Ok(_) => {
+                    //lock
+                    let holder = unsafe { &mut *self.wakers.get() };
+                    if let Some(items) = holder {
+                        items.push(waker.clone());
+                    } else {
+                        *holder = Some(vec![waker.clone()]);
+                    }
+                    self.state.store(initial, Ordering::Release);
+                    return true;
+                }
+                Err(v) if v & STATE_VALUE_SET == STATE_VALUE_SET => return false,
+                Err(_) => {
+                    //another thread took lock
+                    hint::spin_loop();
+                    continue;
+                }
             }
-            if state & STATE_LOCKED == STATE_LOCKED {
-                state = self.state.load(Ordering::Acquire);
-                hint::spin_loop();
-                continue;
-            }
-            //state == 0
-            let old = self
-                .state
-                .compare_and_swap(state, state | STATE_LOCKED, Ordering::AcqRel);
-            if old != state {
-                state = old;
-                hint::spin_loop();
-                continue;
-            }
-
-            //lock
-            let holder = unsafe { &mut *self.wakers.get() };
-            if let Some(items) = holder {
-                items.push(waker.clone());
-            } else {
-                *holder = Some(vec![waker.clone()]);
-            }
-            self.state.store(0, Ordering::Release);
-            return true;
         }
     }
     #[inline(always)]
@@ -144,32 +140,32 @@ impl<T> State<T> {
 
     /// take value and reset state
     fn take(&self) -> Option<T> {
-        let mut state = self.state.load(Ordering::Acquire);
+        // only take value if value has been set, otherwise waiting until lock is released
+        let cur = STATE_VALUE_SET;
         loop {
-            if state == 0 {
-                return None;
+            let res = self.state.compare_exchange(
+                cur,
+                cur | STATE_LOCKED,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            );
+            match res {
+                Ok(_) => {
+                    //locked
+                    let val = unsafe {
+                        (&mut *self.wakers.get()).take();
+                        (&mut *self.value.get()).take()
+                    };
+                    self.state.store(0, Ordering::Release);
+                    return val;
+                }
+                Err(v) if v & STATE_LOCKED == STATE_LOCKED => {
+                    //another thread took lock
+                    hint::spin_loop();
+                    continue;
+                }
+                Err(_) => return None,
             }
-            if state & STATE_LOCKED == STATE_LOCKED {
-                state = self.state.load(Ordering::Acquire);
-                hint::spin_loop();
-                continue;
-            }
-            let old = self
-                .state
-                .compare_and_swap(state, state | STATE_LOCKED, Ordering::AcqRel);
-            if old != state {
-                state = old;
-                hint::spin_loop();
-                continue;
-            }
-
-            //locked
-            let val = unsafe {
-                (&mut *self.wakers.get()).take();
-                (&mut *self.value.get()).take()
-            };
-            self.state.store(0, Ordering::Release);
-            return val;
         }
     }
 }
