@@ -39,17 +39,14 @@ impl<T> State<T> {
             match res {
                 Ok(_) => {
                     //locked
-                    unsafe {
+                    let wakers = unsafe {
                         *self.value.get() = Some(val);
-                        (&mut *self.wakers.get()).take().map(|mut items| loop {
-                            if let Some(w) = items.pop() {
-                                w.wake()
-                            } else {
-                                break;
-                            }
-                        });
-                    }
-                    self.state.store(STATE_VALUE_SET, Ordering::Release);
+                        let wakers = (&mut *self.wakers.get()).take();
+                        self.state.store(STATE_VALUE_SET, Ordering::Release);
+                        wakers
+                    };
+                    wakers.map(|items| items.into_iter().for_each(Waker::wake));
+
                     return true;
                 }
                 Err(v) if v & STATE_VALUE_SET == STATE_VALUE_SET => return false,
