@@ -143,7 +143,7 @@ impl TagFactory {
 
     /// create tag. When tag created, will connect automatically in the background until connected
     #[inline]
-    async fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
+    pub async fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
         let path = opts.to_string();
         let token = mailbox::create(&self.mailbox, path).await;
         TagEntry::new(opts, token)
