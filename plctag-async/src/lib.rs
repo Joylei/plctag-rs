@@ -68,10 +68,7 @@ extern crate log;
 #[macro_use]
 extern crate async_trait;
 pub use plctag::{RawTag, Status, TagValue};
-use std::{
-    fmt::{self, Display},
-    sync::Arc,
-};
+use std::{fmt, sync::Arc};
 use task::JoinError;
 use tokio::task;
 mod cell;
@@ -92,10 +89,12 @@ pub use op::AsyncTag;
 pub type Pool = pool::Pool<RawTag>;
 pub type PoolEntry = pool::Entry<RawTag>;
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug, Clone)]
 pub enum Error {
     TagError(Status),
-    TaskError,
+    JoinError,
     RecvError,
 }
 
@@ -109,7 +108,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::TagError(e) => fmt::Display::fmt(e, f),
-            Error::TaskError => write!(f, "Task Join Error"),
+            Error::JoinError => write!(f, "Task Join Error"),
             Error::RecvError => write!(f, "Channel Receive Error"),
         }
     }
@@ -122,24 +121,20 @@ impl From<Status> for Error {
 }
 
 impl From<JoinError> for Error {
-    fn from(e: JoinError) -> Self {
-        Error::TaskError
+    fn from(_e: JoinError) -> Self {
+        Error::JoinError
     }
 }
-
-use std::result::Result as std_result;
-pub type Result<T> = std_result<T, Error>;
 
 /// exclusive tag ref to ensure thread and operations safety
 pub struct TagRef<'a, T> {
     tag: &'a T,
+    #[allow(dead_code)]
     lock: tokio::sync::MutexGuard<'a, ()>,
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fmt;
-
     use super::*;
 
     #[test]
@@ -147,7 +142,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new()?;
         rt.block_on(async {
             let path = "make=system&family=library&name=debug&debug=4";
-            let entry = TagEntry::new(path).await?;
+            let entry = TagEntry::create(path).await?;
             let tag = entry.get().await?;
 
             let level: i32 = tag.read_value(0).await?;

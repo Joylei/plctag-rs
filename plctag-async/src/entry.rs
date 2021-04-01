@@ -1,4 +1,3 @@
-use crate::op::{AsyncTag, AsyncTagBase};
 use crate::*;
 
 use tokio::time;
@@ -22,7 +21,7 @@ impl Clone for TagEntry {
 }
 
 impl TagEntry {
-    pub async fn new(options: impl Into<String>) -> Result<Self> {
+    pub async fn create(options: impl Into<String>) -> Result<Self> {
         let path = options.into();
         let tag = {
             let path = path.clone();
@@ -32,7 +31,7 @@ impl TagEntry {
             let status = tag.status();
             if status.is_pending() {
                 //task::yield_now().await;
-                time::sleep(Duration::from_millis(5)).await;
+                time::sleep(Duration::from_millis(1)).await;
                 continue;
             }
             if status.is_err() {
@@ -53,5 +52,17 @@ impl TagEntry {
         let lock = self.inner.lock.lock().await;
         let tag = &self.inner.tag;
         Ok(TagRef { tag, lock })
+    }
+}
+
+impl From<RawTag> for TagEntry {
+    #[inline(always)]
+    fn from(tag: RawTag) -> Self {
+        Self {
+            inner: Arc::new(Inner {
+                tag,
+                lock: tokio::sync::Mutex::new(()),
+            }),
+        }
     }
 }

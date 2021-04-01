@@ -50,7 +50,7 @@ mod test {
         rt.block_on(async {
             let cell = Arc::new(OnceCell::new());
             let flag = Arc::new(Notify::new());
-            let t = {
+            {
                 let cell = Arc::clone(&cell);
                 let flag = Arc::clone(&flag);
                 task::spawn(async move {

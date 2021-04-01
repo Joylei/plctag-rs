@@ -7,7 +7,6 @@ use std::{
     cell::UnsafeCell,
     collections::{BTreeSet, HashMap},
     future::Future,
-    ops::Deref,
     sync::{
         atomic::{AtomicU8, Ordering},
         Arc,
@@ -216,14 +215,7 @@ impl<T: Initialize> Entry<T> {
     fn path(&self) -> &str {
         &self.inner.path
     }
-    #[inline]
-    fn get_tag(&self) -> &T {
-        if self.has_instance() {
-            self.get_tag_unchecked()
-        } else {
-            panic!("bad usage, tag not ready yet")
-        }
-    }
+
     #[inline]
     fn get_tag_unchecked(&self) -> &T {
         if let Some(res) = unsafe { &*self.inner.tag.get() } {
@@ -334,11 +326,6 @@ struct State<T: Initialize> {
 }
 
 impl<T: Initialize> State<T> {
-    #[inline(always)]
-    fn get_tag(&self, id: u64) -> Option<&Entry<T>> {
-        self.tags.get(&id)
-    }
-
     #[inline(always)]
     fn get_tag_by_path(&self, path: &str) -> Option<&Entry<T>> {
         if let Some(id) = self.tag_keys.get(path) {
@@ -466,6 +453,7 @@ async fn create_tag_task<T: Initialize + 'static>(shared: Arc<Shared<T>>, state:
     }
 }
 
+#[allow(dead_code)]
 #[cfg(test)]
 mod test {
     use super::*;
@@ -569,7 +557,7 @@ mod test {
                 })
             };
 
-            tokio::join!(task1, task2);
+            let _ = tokio::join!(task1, task2);
             {
                 let reader = pool.shared.state.read();
                 assert!(reader.creation.is_empty());
@@ -610,7 +598,7 @@ mod test {
                 })
             };
 
-            tokio::join!(task1, task2, task3);
+            let _ = tokio::join!(task1, task2, task3);
             {
                 let reader = pool.shared.state.read();
                 assert!(reader.creation.is_empty());
