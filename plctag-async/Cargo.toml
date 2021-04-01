@@ -10,10 +10,14 @@ edition = "2018"
 plctag-sys = { path = "../plctag-sys" }
 plctag = { path = "../plctag" }
 parking_lot = "*"
-tokio = { version = "1", default-features = false, features = ["rt-multi-thread", "time", "sync"] }
-uuid = { version = "*", features = ["v4"] }
-futures = { version = "*", default-features = false, features = ["std"] }
+tokio = { version = "1", default-features = false, features = [
+    "rt-multi-thread",
+    "time",
+    "sync",
+    "macros",
+] }
 log = "*"
+async-trait = "*"
 
 [dev-dependencies]
 anyhow = "*"

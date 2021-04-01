@@ -61,12 +61,12 @@
 //! });
 //!  ```
 
-extern crate futures;
 extern crate plctag;
 extern crate tokio;
 #[macro_use]
 extern crate log;
-use mailbox::Mailbox;
+#[macro_use]
+extern crate async_trait;
 pub use plctag::{RawTag, Status, TagValue};
 use std::{
     fmt::{self, Display},
@@ -76,24 +76,32 @@ use task::JoinError;
 use tokio::task;
 mod cell;
 mod entry;
-mod mailbox;
+mod op;
+mod pool;
 
 pub use entry::TagEntry;
+pub use op::AsyncTag;
 
-#[derive(Debug)]
+/// Tag instance will be put into pool for reuse.
+///
+/// # Note
+/// - Tag instances will not drop if the [`PoolEntry`] or [`Pool`] is still on the stack
+///
+/// ---
+/// To remove tag instance from [`Pool`], you can call [`Pool::remove`]
+pub type Pool = pool::Pool<RawTag>;
+pub type PoolEntry = pool::Entry<RawTag>;
+
+#[derive(Debug, Clone)]
 pub enum Error {
     TagError(Status),
-    TaskError(JoinError),
+    TaskError,
     RecvError,
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::TagError(_) => None,
-            Error::TaskError(e) => Some(e),
-            Error::RecvError => None,
-        }
+        None
     }
 }
 
@@ -101,7 +109,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::TagError(e) => fmt::Display::fmt(e, f),
-            Error::TaskError(e) => fmt::Display::fmt(e, f),
+            Error::TaskError => write!(f, "Task Join Error"),
             Error::RecvError => write!(f, "Channel Receive Error"),
         }
     }
@@ -115,46 +123,17 @@ impl From<Status> for Error {
 
 impl From<JoinError> for Error {
     fn from(e: JoinError) -> Self {
-        Error::TaskError(e)
+        Error::TaskError
     }
 }
 
 use std::result::Result as std_result;
 pub type Result<T> = std_result<T, Error>;
 
-/// tag options;
-/// impl Display to returns `libplctag` required path
-pub trait TagOptions: Display {
-    /// unique key to distinguish your tags
-    fn key(&self) -> &str;
-}
-
-struct TagFactory {
-    mailbox: Arc<Mailbox>,
-}
-
-impl TagFactory {
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            mailbox: Arc::new(Mailbox::new()),
-        }
-    }
-
-    /// create tag. When tag created, will connect automatically in the background until connected
-    #[inline]
-    pub async fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
-        let path = opts.to_string();
-        let token = mailbox::create(&self.mailbox, path).await;
-        TagEntry::new(opts, token)
-    }
-}
-
-impl Default for TagFactory {
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
-    }
+/// exclusive tag ref to ensure thread and operations safety
+pub struct TagRef<'a, T> {
+    tag: &'a T,
+    lock: tokio::sync::MutexGuard<'a, ()>,
 }
 
 #[cfg(test)]
@@ -163,32 +142,52 @@ mod tests {
 
     use super::*;
 
-    struct DummyOptions {}
-
-    impl TagOptions for DummyOptions {
-        fn key(&self) -> &str {
-            "system-tag-debug"
-        }
-    }
-
-    impl fmt::Display for DummyOptions {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "make=system&family=library&name=debug&debug=4")
-        }
-    }
     #[test]
-    fn test_read_write() -> anyhow::Result<()> {
+    fn test_entry() -> anyhow::Result<()> {
         let rt = tokio::runtime::Runtime::new()?;
         rt.block_on(async {
-            let factory = TagFactory::new();
-            let tag = factory.create(DummyOptions {}).await;
-            tag.connect().await;
+            let path = "make=system&family=library&name=debug&debug=4";
+            let entry = TagEntry::new(path).await?;
+            let tag = entry.get().await?;
+
             let level: i32 = tag.read_value(0).await?;
             assert_eq!(level, 4);
 
             tag.write_value(0, 1).await?;
             let level: i32 = tag.read_value(0).await?;
             assert_eq!(level, 1);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn test_pool() -> anyhow::Result<()> {
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            let pool = Pool::new();
+            let path = "make=system&family=library&name=debug&debug=4";
+
+            //retrieve 1st
+            {
+                let entry = pool.entry(path).await?;
+                let tag = entry.get().await?;
+
+                let level: i32 = tag.read_value(0).await?;
+                assert_eq!(level, 4);
+
+                tag.write_value(0, 1).await?;
+                let level: i32 = tag.read_value(0).await?;
+                assert_eq!(level, 1);
+            }
+
+            //retrieve 2nd
+            {
+                let entry = pool.entry(path).await?;
+                let tag = entry.get().await?;
+
+                let level: i32 = tag.read_value(0).await?;
+                assert_eq!(level, 1);
+            }
             Ok(())
         })
     }
