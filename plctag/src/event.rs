@@ -3,7 +3,6 @@ use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
 use plctag_sys as ffi;
 use std::{
-    any::Any,
     collections::{hash_map::Entry, HashMap},
     fmt,
     hash::Hash,
@@ -128,6 +127,7 @@ impl<F> Listener for ListenerImpl<F>
 where
     F: FnMut(i32, Event, Status) + Clone + Send + Sync + 'static,
 {
+    #[inline(always)]
     fn invoke(&mut self, tag_id: i32, evt: Event, status: Status) {
         (&mut self.f)(tag_id, evt, status);
     }
@@ -139,10 +139,7 @@ struct State {
 }
 
 impl State {
-    fn check_tag(&self, tag_id: &i32) -> bool {
-        self.handlers.contains_key(tag_id)
-    }
-
+    #[inline(always)]
     fn check_handler(&self, h: &Handler) -> bool {
         if let Some(handlers) = self.handlers.get(&h.tag_id) {
             handlers.contains_key(&h.handler_id)
@@ -163,9 +160,8 @@ impl State {
         }
         if tag_removed {
             self.handlers.remove(&h.tag_id);
-            unsafe {
-                let _ = ffi::plc_tag_unregister_callback(h.tag_id.clone());
-            }
+            let rc = unsafe { ffi::plc_tag_unregister_callback(h.tag_id.clone()) };
+            debug_assert_eq!(rc, ffi::PLCTAG_STATUS_OK as i32);
         }
     }
 }
@@ -181,6 +177,7 @@ impl EventRegistry {
         }))
     }
 
+    #[inline(always)]
     fn remove_handler(&self, h: &Handler) {
         let reader = self.0.upgradable_read();
         if !reader.check_handler(h) {
@@ -207,11 +204,9 @@ impl EventRegistry {
                 Entry::Vacant(e) => {
                     let mut handlers = HashMap::new();
                     handlers.insert(handler_id.clone(), h);
-                    writer.handlers.insert(tag_id.clone(), handlers);
-                    unsafe {
-                        let _ = ffi::plc_tag_unregister_callback(tag_id);
-                        let rc = ffi::plc_tag_register_callback(tag_id, Some(on_event));
-                    }
+                    e.insert(handlers);
+                    let rc = unsafe { ffi::plc_tag_register_callback(tag_id, Some(on_event)) };
+                    debug_assert_eq!(rc, ffi::PLCTAG_STATUS_OK as i32);
                 }
             }
             handler_id
@@ -220,7 +215,6 @@ impl EventRegistry {
         Handler { tag_id, handler_id }
     }
 
-    #[inline]
     fn dispatch(&self, tag_id: i32, event: i32, status: i32) -> bool {
         let res: Option<Vec<_>> = if event == PLCTAG_EVENT_DESTROYED {
             let reader = self.0.upgradable_read();
