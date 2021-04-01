@@ -1,4 +1,6 @@
 #[cfg(feature = "event")]
+extern crate dyn_clone;
+#[cfg(feature = "event")]
 extern crate once_cell;
 #[cfg(feature = "event")]
 extern crate parking_lot;

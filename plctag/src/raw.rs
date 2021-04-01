@@ -1,19 +1,14 @@
 use crate::*;
-
-//use std::thread::sleep;
 use std::time::{Duration, Instant};
 use std::{ffi::CString, thread};
 
 #[cfg(feature = "event")]
-use crate::event::{register, Event, Handle, ListenerBuilder, Token};
+use crate::event::{listen, Event, Handler};
 
 /// wrapper of tag model based on `libplctag`
 #[derive(Debug)]
 pub struct RawTag {
-    #[cfg(not(feature = "event"))]
     tag_id: i32,
-    #[cfg(feature = "event")]
-    inner: Token,
 }
 
 impl RawTag {
@@ -35,16 +30,7 @@ impl RawTag {
         if tag_id < 0 {
             return Err(Status::new(ffi::PLCTAG_ERR_CREATE).into());
         }
-        #[cfg(not(feature = "event"))]
-        {
-            Ok(Self { tag_id })
-        }
-
-        #[cfg(feature = "event")]
-        {
-            let token = register(tag_id, true);
-            Ok(Self { inner: token })
-        }
+        Ok(Self { tag_id })
     }
 
     /// tag id in `libplctag`.
@@ -55,14 +41,7 @@ impl RawTag {
     /// The id might be reused by `libplctag`. So if you use it somewhere, please take care.
     #[inline(always)]
     pub(crate) fn id(&self) -> i32 {
-        #[cfg(not(feature = "event"))]
-        {
-            self.tag_id
-        }
-        #[cfg(feature = "event")]
-        {
-            self.inner.id()
-        }
+        self.tag_id
     }
 
     /// perform write operation.
@@ -383,11 +362,11 @@ impl RawTag {
     /// ```
     #[cfg(feature = "event")]
     #[inline(always)]
-    pub fn listen<'a, F>(&'a self, f: F) -> ListenerBuilder<'a, F>
+    pub fn listen<F>(&self, f: F) -> Handler
     where
-        F: FnMut(Event, Status) + Send + Sync + 'static,
+        F: FnMut(i32, Event, Status) + Send + Sync + Clone + 'static,
     {
-        self.inner.listen(f)
+        listen(self.tag_id, f)
     }
 
     /// Abort the pending operation.
