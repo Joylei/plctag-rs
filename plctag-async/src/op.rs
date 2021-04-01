@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{cell::OnceCell, Result, TagRef};
-use plctag::{event::Event, Accessor, RawTag, TagValue};
+use plctag::{event::Event, GetValue, RawTag, SetValue};
 
 pub trait AsyncTagBase {
     fn get_tag(&self) -> &RawTag;
@@ -14,44 +14,53 @@ pub trait AsyncTag: AsyncTagBase {
         let tag = self.get_tag();
         Ok(tag.size()?)
     }
+
     #[inline(always)]
     fn elem_size(&self) -> Result<i32> {
         let tag = self.get_tag();
         Ok(tag.elem_size()?)
     }
+
     #[inline(always)]
     fn elem_count(&self) -> Result<i32> {
         let tag = self.get_tag();
         Ok(tag.elem_count()?)
     }
+
     #[inline(always)]
     async fn read(&self) -> Result<()> {
         let mut op = Operation::new(&self.get_tag());
         op.run(true).await
     }
+
     #[inline(always)]
     async fn write(&self) -> Result<()> {
         let mut op = Operation::new(&self.get_tag());
         op.run(false).await
     }
+
     #[inline(always)]
-    async fn read_value<T: TagValue + Send + 'static>(&self, offset: u32) -> Result<T> {
+    async fn read_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
         self.read().await?;
         self.get_value(offset)
     }
+
     #[inline(always)]
-    async fn write_value(&self, offset: u32, value: impl TagValue + Send + 'static) -> Result<()> {
+    async fn write_value<T: SetValue + Send>(&self, offset: u32, value: T) -> Result<()> {
         self.set_value(offset, value)?;
-        self.write().await
+        self.write().await?;
+        Ok(())
     }
+
     #[inline(always)]
-    fn get_value<T: TagValue>(&self, offset: u32) -> Result<T> {
+    fn get_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
         let tag = self.get_tag();
         let v = tag.get_value(offset)?;
         Ok(v)
     }
+
     #[inline(always)]
-    fn set_value(&self, offset: u32, value: impl TagValue + Send + 'static) -> Result<()> {
+    fn set_value<T: SetValue>(&self, offset: u32, value: T) -> Result<()> {
         let tag = self.get_tag();
         tag.set_value(offset, value)?;
         Ok(())

@@ -1,4 +1,4 @@
-use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
+use plctag_async::{TagEntry, TagFactory, TagOptions, GetValue, SetValue};
 use tokio::runtime;
 use std::fmt;
 

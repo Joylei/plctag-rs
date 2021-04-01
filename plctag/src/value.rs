@@ -1,4 +1,4 @@
-#![cfg(feature = "value")]
+use std::borrow::Cow;
 
 use crate::{RawTag, Result};
 use paste::paste;
@@ -6,14 +6,16 @@ use paste::paste;
 macro_rules! value_impl {
     ($type: ident) => {
         paste! {
-            impl TagValue for $type {
-
+            impl GetValue for $type {
                 #[inline]
                 fn get_value(&mut self ,tag: &RawTag, offset: u32) -> Result<()> {
                     let v = tag.[<get_ $type>](offset)?;
                     *self = v;
                     Ok(())
                 }
+
+            }
+            impl SetValue for $type {
                 #[inline]
                 fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
                     tag.[<set_ $type>](offset, *self)
@@ -50,7 +52,7 @@ macro_rules! value_impl {
 ///
 /// # UDT
 /// ```rust, ignore
-/// use plctag::{Accessor, TagValue, RawTag}
+/// use plctag::{RawTag, GetValue, SetValue}
 ///
 /// // define your UDT
 /// #[derive(Default)]
@@ -58,13 +60,14 @@ macro_rules! value_impl {
 ///     v1:u16,
 ///     v2:u16,
 /// }
-/// impl TagValue for MyUDT {
+/// impl GetValue for MyUDT {
 ///     fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
 ///         self.v1.get_value(tag, offset)?;
 ///         self.v2.get_value(tag, offset + 2)?;
 ///         Ok(())
 ///     }
-///
+/// }
+/// impl SetValue for MyUDT {
 ///     fn set_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
 ///         self.v1.set_value(tag, offset)?;
 ///         self.v2.set_value(tag, offset+2)?;
@@ -93,10 +96,13 @@ macro_rules! value_impl {
 /// ```
 ///
 /// Note:
-/// Do not perform expensive operations when you derives [`TagValue`].
-pub trait TagValue: Default {
-    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>;
+/// Do not perform expensive operations when you derives [`GetValue`] or [`SetValue`].
 
+pub trait GetValue {
+    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>;
+}
+
+pub trait SetValue {
     fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()>;
 }
 
@@ -112,38 +118,7 @@ value_impl!(u64);
 value_impl!(f32);
 value_impl!(f64);
 
-#[doc(hidden)]
-#[derive(Default)]
-pub struct Bit(bool);
-
-impl From<bool> for Bit {
-    #[inline]
-    fn from(v: bool) -> Bit {
-        Bit(v)
-    }
-}
-
-impl From<Bit> for bool {
-    #[inline]
-    fn from(bit: Bit) -> bool {
-        bit.0
-    }
-}
-
-impl TagValue for Bit {
-    #[inline]
-    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
-        let v = tag.get_bit(offset)?;
-        *self = Bit(v);
-        Ok(())
-    }
-    #[inline]
-    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
-        tag.set_bit(offset, self.0)
-    }
-}
-
-impl<T: TagValue> TagValue for Option<T> {
+impl<T: GetValue + Default> GetValue for Option<T> {
     #[inline]
     fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
         let mut v: T = Default::default();
@@ -151,6 +126,9 @@ impl<T: TagValue> TagValue for Option<T> {
         *self = Some(v);
         Ok(())
     }
+}
+
+impl<T: SetValue> SetValue for Option<T> {
     #[inline]
     fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
         if let Some(ref v) = self {
@@ -160,27 +138,24 @@ impl<T: TagValue> TagValue for Option<T> {
     }
 }
 
-/// generic getter/setter based on trait [`TagValue`]
-pub trait Accessor {
-    /// get tag value of `T` that derives [`TagValue`]
-    fn get_value<T: TagValue>(&self, byte_offset: u32) -> Result<T>;
-
-    /// set tag value that derives [`TagValue`]
-    fn set_value(&self, byte_offset: u32, value: impl TagValue) -> Result<()>;
+impl<T: SetValue> SetValue for &T {
+    #[inline]
+    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::set_value(self, tag, offset)
+    }
 }
 
-impl Accessor for RawTag {
-    /// get tag value of `T` that derives [`TagValue`]
+impl<T: GetValue + Clone> GetValue for Cow<'_, T> {
     #[inline]
-    fn get_value<T: TagValue>(&self, byte_offset: u32) -> Result<T> {
-        let mut v = Default::default();
-        TagValue::get_value(&mut v, self, byte_offset)?;
-        Ok(v)
+    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
+        let v = self.to_mut();
+        T::get_value(v, tag, offset)
     }
+}
 
-    /// set tag value that derives [`TagValue`]
+impl<T: SetValue + Clone> SetValue for Cow<'_, T> {
     #[inline]
-    fn set_value(&self, byte_offset: u32, value: impl TagValue) -> Result<()> {
-        TagValue::set_value(&value, self, byte_offset)
+    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::set_value(self, tag, offset)
     }
 }

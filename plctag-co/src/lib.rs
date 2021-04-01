@@ -18,7 +18,7 @@
 //! ## Examples
 //!
 //!  ```rust,ignore
-//! use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
+//! use plctag_async::{TagEntry, TagFactory, TagOptions, GetValue, SetValue};
 //! use std::fmt;
 //!
 //! struct MyTagOptions {
@@ -71,7 +71,7 @@ mod pool;
 pub use entry::TagEntry;
 use may::coroutine::ParkError;
 pub use op::AsyncTag;
-pub use plctag::{RawTag, Status, TagValue};
+pub use plctag::{GetValue, RawTag, SetValue, Status};
 use std::{
     fmt,
     sync::{Arc, PoisonError},
@@ -143,19 +143,21 @@ pub struct TagRef<'a, T> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
 
     #[test]
     fn test_entry() -> anyhow::Result<()> {
         let path = "make=system&family=library&name=debug&debug=4";
-        let entry = TagEntry::create(path)?;
+        let entry = TagEntry::create(path, Some(Duration::from_millis(500)))?;
         let tag = entry.get()?;
 
-        let level: i32 = tag.read_value(0, None)?;
+        let level: i32 = tag.read_value(0, Some(Duration::from_millis(500)))?;
         assert_eq!(level, 4);
 
-        tag.write_value(0, 1, None)?;
-        let level: i32 = tag.read_value(0, None)?;
+        tag.write_value(0, 1, Some(Duration::from_millis(500)))?;
+        let level: i32 = tag.read_value(0, Some(Duration::from_millis(500)))?;
         assert_eq!(level, 1);
         Ok(())
     }

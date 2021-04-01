@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{cell::SyncCell, Result, TagRef};
-use plctag::{event::Event, Accessor, RawTag, TagValue};
+use plctag::{event::Event, GetValue, RawTag, SetValue};
 
 pub trait AsyncTagBase {
     fn get_tag(&self) -> &RawTag;
@@ -36,7 +36,7 @@ pub trait AsyncTag: AsyncTagBase {
     }
 
     #[inline(always)]
-    fn read_value<T: TagValue + Send + 'static>(
+    fn read_value<T: GetValue + Default>(
         &self,
         offset: u32,
         timeout: Option<Duration>,
@@ -46,10 +46,10 @@ pub trait AsyncTag: AsyncTagBase {
     }
 
     #[inline(always)]
-    fn write_value(
+    fn write_value<T: SetValue>(
         &self,
         offset: u32,
-        value: impl TagValue + Send + 'static,
+        value: T,
         timeout: Option<Duration>,
     ) -> Result<()> {
         self.set_value(offset, value)?;
@@ -57,13 +57,13 @@ pub trait AsyncTag: AsyncTagBase {
     }
 
     #[inline(always)]
-    fn get_value<T: TagValue>(&self, offset: u32) -> Result<T> {
+    fn get_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
         let tag = self.get_tag();
         let v = tag.get_value(offset)?;
         Ok(v)
     }
     #[inline(always)]
-    fn set_value(&self, offset: u32, value: impl TagValue + Send + 'static) -> Result<()> {
+    fn set_value<T: SetValue>(&self, offset: u32, value: T) -> Result<()> {
         let tag = self.get_tag();
         tag.set_value(offset, value)?;
         Ok(())

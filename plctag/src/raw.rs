@@ -378,6 +378,22 @@ impl RawTag {
         let rc = unsafe { ffi::plc_tag_abort(self.id()) };
         Status::new(rc).into_result()
     }
+
+    /// get tag value of `T` that derives [`GetValue`]
+    #[cfg(feature = "value")]
+    #[inline]
+    pub fn get_value<T: GetValue + Default>(&self, byte_offset: u32) -> Result<T> {
+        let mut v = Default::default();
+        GetValue::get_value(&mut v, self, byte_offset)?;
+        Ok(v)
+    }
+
+    /// set tag value that derives [`SetValue`]
+    #[cfg(feature = "value")]
+    #[inline]
+    pub fn set_value<T: SetValue>(&self, byte_offset: u32, value: T) -> Result<()> {
+        value.set_value(self, byte_offset)
+    }
 }
 
 impl Drop for RawTag {

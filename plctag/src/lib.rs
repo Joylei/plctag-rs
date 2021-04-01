@@ -14,9 +14,12 @@ mod debug;
 pub mod event;
 mod raw;
 mod status;
+#[cfg(feature = "value")]
 mod value;
 
 pub type Result<T> = std::result::Result<T, Status>;
 pub use raw::RawTag;
 pub use status::Status;
-pub use value::{Accessor, TagValue};
+
+#[cfg(feature = "value")]
+pub use value::{GetValue, SetValue};

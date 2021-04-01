@@ -21,7 +21,7 @@ You're OK to build your project.
 ## Examples
 
  ```rust
-use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
+use plctag_async::{TagEntry, TagFactory, TagOptions, GetValue, SetValue};
 use std::fmt;
 
 struct MyTagOptions {

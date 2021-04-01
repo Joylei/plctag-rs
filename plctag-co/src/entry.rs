@@ -22,15 +22,7 @@ impl Clone for TagEntry {
 }
 
 impl TagEntry {
-    pub fn create(options: impl Into<String>) -> Result<Self> {
-        Self::create_inner(options, None)
-    }
-
-    pub fn create_timeout(options: impl Into<String>, timeout: Duration) -> Result<Self> {
-        Self::create_inner(options, Some(timeout))
-    }
-
-    fn create_inner(options: impl Into<String>, timeout: Option<Duration>) -> Result<Self> {
+    pub fn create(options: impl Into<String>, timeout: Option<Duration>) -> Result<Self> {
         let path = options.into();
         let tag = RawTag::new(path.clone(), 0)?;
         let is_timeout = if let Some(timeout) = timeout {
@@ -42,6 +34,7 @@ impl TagEntry {
         loop {
             let status = tag.status();
             if status.is_pending() {
+                //check timeout
                 if is_timeout.map(|f| f()).unwrap_or(false) {
                     return Err(Error::Timeout);
                 }

@@ -20,7 +20,7 @@
 //! ## Examples
 //!
 //!  ```rust,ignore
-//! use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
+//! use plctag_async::{TagEntry, TagFactory, TagOptions, GetValue, SetValue};
 //! use tokio::runtime;
 //! use std::fmt;
 //!
@@ -67,7 +67,7 @@ extern crate tokio;
 extern crate log;
 #[macro_use]
 extern crate async_trait;
-pub use plctag::{RawTag, Status, TagValue};
+pub use plctag::{GetValue, RawTag, SetValue, Status};
 use std::{fmt, sync::Arc};
 use task::JoinError;
 use tokio::task;
@@ -170,7 +170,7 @@ mod tests {
                 let level: i32 = tag.read_value(0).await?;
                 assert_eq!(level, 4);
 
-                tag.write_value(0, 1).await?;
+                tag.write_value(0, &1_i32).await?;
                 let level: i32 = tag.read_value(0).await?;
                 assert_eq!(level, 1);
             }

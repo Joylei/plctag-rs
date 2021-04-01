@@ -1,4 +1,4 @@
-use plctag_async::{TagEntry, TagFactory, TagOptions, TagValue};
+use plctag_async::{GetValue, SetValue, TagEntry, TagFactory, TagOptions};
 use std::fmt;
 
 struct MyTagOptions {
