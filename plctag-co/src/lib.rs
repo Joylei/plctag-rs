@@ -62,72 +62,46 @@ extern crate may;
 extern crate once_cell;
 extern crate plctag;
 extern crate plctag_sys;
-extern crate uuid;
 
 mod entry;
 //mod event;
-mod mailbox;
-
+mod cell;
+mod op;
+mod pool;
 pub use entry::TagEntry;
-use mailbox::Mailbox;
 use may::coroutine::ParkError;
-pub use plctag::{Status, TagValue};
+pub use op::AsyncTag;
+pub use plctag::{RawTag, Status, TagValue};
 use std::{
-    fmt::{self, Display},
-    sync::Arc,
+    fmt,
+    sync::{Arc, PoisonError},
 };
+
+/// Tag instance will be put into pool for reuse.
+///
+/// # Note
+/// - Tag instances will not drop if the [`PoolEntry`] or [`Pool`] is still on the stack
+///
+/// ---
+/// To remove tag instance from [`Pool`], you can call [`Pool::remove`]
+pub type Pool = pool::Pool<RawTag>;
+pub type PoolEntry = pool::Entry<RawTag>;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// tag options;
-/// impl Display to returns `libplatag` required path
-pub trait TagOptions: Display {
-    /// unique key to distinguish your tags
-    fn key(&self) -> &str;
-}
-
-struct TagFactory {
-    mailbox: Arc<Mailbox>,
-}
-
-impl TagFactory {
-    #[inline]
-    pub fn new() -> Self {
-        Self {
-            mailbox: Arc::new(Mailbox::new()),
-        }
-    }
-
-    /// create tag. When tag created, will connect automatically in the background forever
-    #[inline]
-    pub fn create<O: TagOptions>(&self, opts: O) -> TagEntry<O> {
-        let path = opts.to_string();
-        let token = mailbox::create(&self.mailbox, path);
-        TagEntry::new(opts, token)
-    }
-}
-
-impl Default for TagFactory {
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
     /// tag error with status
     TagError(Status),
     /// coroutine park error
     ParkError,
+    PoisonError,
+    Timeout,
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Error::TagError(_) => None,
-            Error::ParkError => None,
-        }
+        None
     }
 }
 
@@ -136,6 +110,8 @@ impl fmt::Display for Error {
         match self {
             Error::TagError(e) => fmt::Display::fmt(e, f),
             Error::ParkError => write!(f, "Coroutine Park Error"),
+            Error::PoisonError => write!(f, "Lock Poisoned"),
+            Error::Timeout => write!(f, "Operation Timeout"),
         }
     }
 }
@@ -147,56 +123,69 @@ impl From<Status> for Error {
 }
 
 impl From<ParkError> for Error {
-    fn from(e: ParkError) -> Self {
+    fn from(_e: ParkError) -> Self {
         Error::ParkError
     }
+}
+
+impl<T> From<PoisonError<T>> for Error {
+    fn from(_e: PoisonError<T>) -> Self {
+        Error::PoisonError
+    }
+}
+
+/// exclusive tag ref to ensure thread and operations safety
+pub struct TagRef<'a, T> {
+    tag: &'a T,
+    #[allow(dead_code)]
+    lock: may::sync::MutexGuard<'a, ()>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fmt;
-    use std::time::Duration;
-
-    struct DummyOptions {}
-
-    impl TagOptions for DummyOptions {
-        fn key(&self) -> &str {
-            "system-tag-debug"
-        }
-    }
-
-    impl fmt::Display for DummyOptions {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "make=system&family=library&name=debug&debug=4")
-        }
-    }
 
     #[test]
-    fn test_connected() {
-        let factory = TagFactory::new();
-        let tag = factory.create(DummyOptions {});
-        let connected = tag.connect(Some(Duration::from_millis(150)));
-        assert!(connected);
+    fn test_entry() -> anyhow::Result<()> {
+        let path = "make=system&family=library&name=debug&debug=4";
+        let entry = TagEntry::create(path)?;
+        let tag = entry.get()?;
 
-        let connected = tag.connect(Some(Duration::from_millis(150)));
-        assert!(connected);
-
-        let connected = tag.connect(Some(Duration::from_millis(150)));
-        assert!(connected);
-    }
-
-    #[test]
-    fn test_read_write() {
-        let factory = TagFactory::new();
-        let tag = factory.create(DummyOptions {});
-        let connected = tag.connect(Some(Duration::from_millis(150)));
-        assert!(connected);
-        let level: i32 = tag.read_value(0).unwrap();
+        let level: i32 = tag.read_value(0, None)?;
         assert_eq!(level, 4);
 
-        tag.write_value(0, 1).unwrap();
-        let level: i32 = tag.read_value(0).unwrap();
+        tag.write_value(0, 1, None)?;
+        let level: i32 = tag.read_value(0, None)?;
         assert_eq!(level, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_pool() -> anyhow::Result<()> {
+        let pool = Pool::new();
+        let path = "make=system&family=library&name=debug&debug=4";
+
+        //retrieve 1st
+        {
+            let entry = pool.entry(path, None)?;
+            let tag = entry.get(None)?;
+
+            let level: i32 = tag.read_value(0, None)?;
+            assert_eq!(level, 4);
+
+            tag.write_value(0, 1, None)?;
+            let level: i32 = tag.read_value(0, None)?;
+            assert_eq!(level, 1);
+        }
+
+        //retrieve 2nd
+        {
+            let entry = pool.entry(path, None)?;
+            let tag = entry.get(None)?;
+
+            let level: i32 = tag.read_value(0, None)?;
+            assert_eq!(level, 1);
+        }
+        Ok(())
     }
 }
