@@ -6,7 +6,9 @@ extern crate once_cell;
 extern crate parking_lot;
 extern crate plctag_sys;
 
-use plctag_sys as ffi;
+pub mod ffi {
+    pub use plctag_sys::*;
+}
 
 pub mod builder;
 mod debug;

@@ -60,14 +60,14 @@ extern crate log;
 #[macro_use]
 extern crate may;
 extern crate once_cell;
-extern crate plctag;
-extern crate plctag_sys;
+pub extern crate plctag;
 
 mod entry;
 //mod event;
 mod cell;
 mod op;
 mod pool;
+
 pub use entry::TagEntry;
 use may::coroutine::ParkError;
 pub use op::AsyncTag;

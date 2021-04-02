@@ -477,7 +477,7 @@ fn create_tag_task<T: Initialize + 'static>(shared: Arc<Shared<T>>, state: &mut 
 #[cfg(test)]
 mod test {
     use super::*;
-    use plctag_sys as ffi;
+    use plctag::ffi;
 
     struct FakeTag {
         count: AtomicU8,

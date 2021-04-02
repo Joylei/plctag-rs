@@ -8,5 +8,4 @@ edition = "2018"
 
 [dependencies]
 log = "*"
-plctag-sys = { path = "../plctag-sys" }
 plctag = { path = "../plctag" }

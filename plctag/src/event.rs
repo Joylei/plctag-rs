@@ -1,14 +1,13 @@
 use fmt::Debug;
 use once_cell::sync::Lazy;
 use parking_lot::{RwLock, RwLockUpgradableReadGuard};
-use plctag_sys as ffi;
 use std::{
     collections::{hash_map::Entry, HashMap},
     fmt,
     hash::Hash,
 };
 
-use crate::Status;
+use crate::{ffi, Status};
 
 #[inline(always)]
 pub(crate) fn listen<F>(tag_id: i32, f: F) -> Handler

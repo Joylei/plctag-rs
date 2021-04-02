@@ -61,16 +61,13 @@
 //! });
 //!  ```
 
-extern crate plctag;
+pub extern crate plctag;
 extern crate tokio;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate async_trait;
-pub use plctag::{GetValue, RawTag, SetValue, Status};
-use std::{fmt, sync::Arc};
-use task::JoinError;
-use tokio::task;
+
 mod cell;
 mod entry;
 mod op;
@@ -78,6 +75,10 @@ mod pool;
 
 pub use entry::TagEntry;
 pub use op::AsyncTag;
+
+use plctag::{RawTag, Status};
+use std::{fmt, sync::Arc};
+use tokio::task::{self, JoinError};
 
 /// Tag instance will be put into pool for reuse.
 ///
@@ -95,7 +96,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     TagError(Status),
     JoinError,
-    RecvError,
 }
 
 impl std::error::Error for Error {
@@ -109,7 +109,6 @@ impl fmt::Display for Error {
         match self {
             Error::TagError(e) => fmt::Display::fmt(e, f),
             Error::JoinError => write!(f, "Task Join Error"),
-            Error::RecvError => write!(f, "Channel Receive Error"),
         }
     }
 }

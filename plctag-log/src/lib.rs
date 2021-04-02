@@ -19,12 +19,12 @@
 //! // now, you can receive log messages by any of logging implementations of crate `log`
 //! ```
 extern crate plctag;
-extern crate plctag_sys as ffi;
 #[macro_use]
 extern crate log;
 
 pub use plctag::builder::DebugLevel;
 
+use plctag::ffi;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
