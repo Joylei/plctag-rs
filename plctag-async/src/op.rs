@@ -3,74 +3,31 @@ use std::sync::Arc;
 use crate::{cell::OnceCell, Result, TagRef};
 use plctag::{event::Event, GetValue, RawTag, SetValue};
 
-pub trait AsyncTagBase {
-    fn get_tag(&self) -> &RawTag;
-}
-
 #[async_trait]
-pub trait AsyncTag: AsyncTagBase {
-    #[inline(always)]
-    fn size(&self) -> Result<u32> {
-        let tag = self.get_tag();
-        Ok(tag.size()?)
-    }
-
-    #[inline(always)]
-    fn elem_size(&self) -> Result<i32> {
-        let tag = self.get_tag();
-        Ok(tag.elem_size()?)
-    }
-
-    #[inline(always)]
-    fn elem_count(&self) -> Result<i32> {
-        let tag = self.get_tag();
-        Ok(tag.elem_count()?)
-    }
-
+pub trait AsyncTag: AsRef<RawTag> {
     #[inline(always)]
     async fn read(&self) -> Result<()> {
-        let mut op = Operation::new(&self.get_tag());
+        let mut op = Operation::new(self.as_ref());
         op.run(true).await
     }
 
     #[inline(always)]
     async fn write(&self) -> Result<()> {
-        let mut op = Operation::new(&self.get_tag());
+        let mut op = Operation::new(self.as_ref());
         op.run(false).await
     }
 
     #[inline(always)]
     async fn read_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
         self.read().await?;
-        self.get_value(offset)
+        Ok(self.as_ref().get_value(offset)?)
     }
 
     #[inline(always)]
     async fn write_value<T: SetValue + Send>(&self, offset: u32, value: T) -> Result<()> {
-        self.set_value(offset, value)?;
+        self.as_ref().set_value(offset, value)?;
         self.write().await?;
         Ok(())
-    }
-
-    #[inline(always)]
-    fn get_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
-        let tag = self.get_tag();
-        let v = tag.get_value(offset)?;
-        Ok(v)
-    }
-
-    #[inline(always)]
-    fn set_value<T: SetValue>(&self, offset: u32, value: T) -> Result<()> {
-        let tag = self.get_tag();
-        tag.set_value(offset, value)?;
-        Ok(())
-    }
-}
-
-impl AsyncTagBase for TagRef<'_, RawTag> {
-    #[inline(always)]
-    fn get_tag(&self) -> &RawTag {
-        self.tag
     }
 }
 

@@ -3,35 +3,16 @@ use std::time::Duration;
 use crate::{cell::SyncCell, Result, TagRef};
 use plctag::{event::Event, GetValue, RawTag, SetValue};
 
-pub trait AsyncTagBase {
-    fn get_tag(&self) -> &RawTag;
-}
-pub trait AsyncTag: AsyncTagBase {
-    #[inline(always)]
-    fn size(&self) -> Result<u32> {
-        let tag = self.get_tag();
-        Ok(tag.size()?)
-    }
-    #[inline(always)]
-    fn elem_size(&self) -> Result<i32> {
-        let tag = self.get_tag();
-        Ok(tag.elem_size()?)
-    }
-    #[inline(always)]
-    fn elem_count(&self) -> Result<i32> {
-        let tag = self.get_tag();
-        Ok(tag.elem_count()?)
-    }
-
+pub trait AsyncTag: AsRef<RawTag> {
     #[inline(always)]
     fn read(&self, timeout: Option<Duration>) -> Result<()> {
-        let mut op = Operation::new(&self.get_tag());
+        let mut op = Operation::new(self.as_ref());
         op.run(true, timeout)
     }
 
     #[inline(always)]
     fn write(&self, timeout: Option<Duration>) -> Result<()> {
-        let mut op = Operation::new(&self.get_tag());
+        let mut op = Operation::new(self.as_ref());
         op.run(false, timeout)
     }
 
@@ -42,7 +23,7 @@ pub trait AsyncTag: AsyncTagBase {
         timeout: Option<Duration>,
     ) -> Result<T> {
         self.read(timeout)?;
-        self.get_value(offset)
+        Ok(self.as_ref().get_value(offset)?)
     }
 
     #[inline(always)]
@@ -52,28 +33,8 @@ pub trait AsyncTag: AsyncTagBase {
         value: T,
         timeout: Option<Duration>,
     ) -> Result<()> {
-        self.set_value(offset, value)?;
+        self.as_ref().set_value(offset, value)?;
         self.write(timeout)
-    }
-
-    #[inline(always)]
-    fn get_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
-        let tag = self.get_tag();
-        let v = tag.get_value(offset)?;
-        Ok(v)
-    }
-    #[inline(always)]
-    fn set_value<T: SetValue>(&self, offset: u32, value: T) -> Result<()> {
-        let tag = self.get_tag();
-        tag.set_value(offset, value)?;
-        Ok(())
-    }
-}
-
-impl AsyncTagBase for TagRef<'_, RawTag> {
-    #[inline(always)]
-    fn get_tag(&self) -> &RawTag {
-        self.tag
     }
 }
 

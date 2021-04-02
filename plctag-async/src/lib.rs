@@ -132,6 +132,13 @@ pub struct TagRef<'a, T> {
     lock: tokio::sync::MutexGuard<'a, ()>,
 }
 
+impl<T> AsRef<T> for TagRef<'_, T> {
+    #[inline(always)]
+    fn as_ref(&self) -> &T {
+        &self.tag
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
