@@ -3,10 +3,12 @@ use crate::*;
 use tokio::time;
 use tokio::time::Duration;
 
+#[derive(Debug)]
 pub struct TagEntry {
     inner: Arc<Inner>,
 }
 
+#[derive(Debug)]
 struct Inner {
     tag: RawTag,
     lock: tokio::sync::Mutex<()>,

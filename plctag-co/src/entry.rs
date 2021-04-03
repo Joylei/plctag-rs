@@ -4,10 +4,12 @@ use crate::*;
 use may::coroutine as co;
 use plctag::RawTag;
 
+#[derive(Debug)]
 pub struct TagEntry {
     inner: Arc<Inner>,
 }
 
+#[derive(Debug)]
 struct Inner {
     tag: RawTag,
     lock: may::sync::Mutex<()>,

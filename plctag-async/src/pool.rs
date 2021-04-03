@@ -38,6 +38,7 @@ impl Initialize for RawTag {
     }
 }
 
+#[derive(Debug)]
 pub struct Pool<T: Initialize> {
     shared: Arc<Shared<T>>,
 }
@@ -161,6 +162,7 @@ impl CreationStatus {
     }
 }
 
+#[derive(Debug)]
 struct EntryInner<T> {
     /// unique id for this instance
     id: u64,
@@ -175,6 +177,7 @@ struct EntryInner<T> {
 unsafe impl<T> Send for EntryInner<T> {}
 unsafe impl<T> Sync for EntryInner<T> {}
 
+#[derive(Debug)]
 pub struct Entry<T> {
     inner: Arc<EntryInner<T>>,
     lock: Arc<tokio::sync::Mutex<()>>,
@@ -315,6 +318,7 @@ impl<T: Initialize> Entry<T> {
     }
 }
 
+#[derive(Debug)]
 struct State<T: Initialize> {
     tags: HashMap<u64, Entry<T>>,
     /// ref tags by tag path
@@ -349,6 +353,7 @@ impl<T: Initialize> State<T> {
     }
 }
 
+#[derive(Debug)]
 struct Shared<T: Initialize> {
     state: RwLock<State<T>>,
     scan_task: Notify,
