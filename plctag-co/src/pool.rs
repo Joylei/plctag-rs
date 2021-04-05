@@ -13,7 +13,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::*;
+use crate::{Error, RawTag, Result, Status, TagRef};
 
 #[doc(hidden)]
 pub trait Initialize: Send + Sync {
@@ -24,11 +24,13 @@ pub trait Initialize: Send + Sync {
 }
 
 impl Initialize for RawTag {
+    #[inline(always)]
     fn create(path: String) -> Result<Self> {
         let tag = RawTag::new(path, 0)?;
         Ok(tag)
     }
 
+    #[inline(always)]
     fn status(&self) -> Status {
         RawTag::status(self)
     }
