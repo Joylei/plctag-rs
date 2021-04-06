@@ -187,7 +187,7 @@ impl<T> Drop for Pool<T> {
         // - purge task
         // - scan task
         if Arc::strong_count(&self.shared) == 3 {
-            dbg!("drop pool");
+            debug!("drop pool");
             let mut state = self.shared.state.lock();
             state.shutdown = true;
             drop(state);
@@ -237,13 +237,10 @@ pub struct Entry<T: Initialize> {
 
 impl<T: Initialize> Drop for Entry<T> {
     fn drop(&mut self) {
-        dbg!(Arc::strong_count(&self.inner.lock));
+        //dbg!(Arc::strong_count(&self.inner.lock));
         let should_expire = Arc::strong_count(&self.inner.lock) == 2;
         if should_expire {
-            dbg!(format!(
-                "PoolState: entry[{}] will expire",
-                self.inner.state.id
-            ));
+            debug!("PoolState: entry[{}] will expire", self.inner.state.id);
             //already set expiration for error state, skip
             self.shared.will_expire(self.inner.state.id, false, None);
         }
@@ -380,7 +377,7 @@ impl<T: Initialize> PoolState<T> {
         let inner = entry.inner.clone();
         self.entry_keys.insert(path, id);
         self.entries.insert(id, entry);
-        dbg!(format!("PoolState: entry[{}] added", id));
+        debug!("PoolState: entry[{}] added", id);
         Ok(inner)
     }
 
@@ -394,7 +391,7 @@ impl<T: Initialize> PoolState<T> {
                     self.expirations.remove(&(when, id));
                 }
                 let res = self.entries.remove(&id);
-                dbg!(format!("PoolState: entry[{}] removed", id));
+                debug!("PoolState: entry[{}] removed", id);
                 return res;
             }
         }
@@ -419,7 +416,7 @@ impl<T: Initialize> PoolState<T> {
                         self.expirations.remove(&(when, id));
                     }
                     item.will_expire = None;
-                    dbg!(format!("PoolState: entry[{}] will alive", item.id()));
+                    debug!("PoolState: entry[{}] will alive", item.id());
                 }
 
                 return Some(&item.inner);
@@ -528,7 +525,7 @@ async fn purge_expired_tags_task<T: Initialize>(shared: Arc<Wrapper<T>>) {
                 _ = shared.purge_task.notified() => {}
             }
         } else {
-            dbg!("purge_expired_tags_task: wait for signal");
+            debug!("purge_expired_tags_task: wait for signal");
             shared.purge_task.notified().await;
         }
     }
@@ -577,13 +574,13 @@ async fn creation_message_loop<T: Initialize + 'static>(
         if let Some(m) = rx.recv().await {
             match m {
                 CreationMessage::Add(item) => {
-                    dbg!(format!("scan_tags_task: entry[{}] add", item.id));
+                    debug!("scan_tags_task: entry[{}] add", item.id);
                     let mut state = state.lock().await;
                     state.insert(item.id, item);
                     flag.notify_one();
                 }
                 CreationMessage::Remove(id) => {
-                    dbg!(format!("scan_tags_task: entry[{}] remove", id));
+                    debug!("scan_tags_task: entry[{}] remove", id);
                     let mut state = state.lock().await;
                     state.remove(&id);
                 }
@@ -611,7 +608,7 @@ async fn scan_tags_task<T: Initialize + 'static>(
     ));
 
     loop {
-        dbg!("scan_tags_task: scan once");
+        debug!("scan_tags_task: scan once");
         let count = {
             let state = &mut *state.lock().await;
             let mut count = state.len();
@@ -621,14 +618,14 @@ async fn scan_tags_task<T: Initialize + 'static>(
                     if let Some(entry) = state.get_mut(&id) {
                         let status = entry.tag.status();
                         if !status.is_pending() {
-                            dbg!(format!("scan_tags_task: entry[{}] initialized", id));
+                            debug!("scan_tags_task: entry[{}] initialized", id);
                             let _ = entry.err_status.set(status);
                             state.remove(&id);
 
                             // in error state, set expired so it will be removed later
                             if status.is_err() {
                                 let when = Instant::now() + shared.options.fault_last;
-                                dbg!(format!("scan_tags_task: entry[{}] will expire", id));
+                                debug!("scan_tags_task: entry[{}] will expire", id);
                                 shared.will_expire(id, true, Some(when));
                             }
                         }
@@ -644,7 +641,7 @@ async fn scan_tags_task<T: Initialize + 'static>(
             if shared.is_shutdown() {
                 break;
             }
-            dbg!("scan_tags_task: wait for signal");
+            debug!("scan_tags_task: wait for signal");
             flag.notified().await;
         } else {
             time::sleep(Duration::from_millis(1)).await;
