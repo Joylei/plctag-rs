@@ -1,39 +1,137 @@
-use std::cell::UnsafeCell;
-
-use parking_lot::Once;
+use std::{
+    cell::UnsafeCell,
+    hint,
+    mem::MaybeUninit,
+    ptr,
+    sync::atomic::{AtomicU8, Ordering},
+};
 use tokio::sync::Notify;
 
+const STATUS_NOTIFY_ALL: u8 = 1;
+const STATUS_LOCKED: u8 = 2;
+const STATUS_VALUE_SET: u8 = 4;
+
+/// async OnceCell
+#[derive(Debug)]
 pub struct OnceCell<T> {
-    once: Once,
+    cell: UnsafeCell<MaybeUninit<T>>,
+    status: AtomicU8,
     flag: Notify,
-    cell: UnsafeCell<Option<T>>,
 }
 
 impl<T> OnceCell<T> {
     #[inline(always)]
     pub fn new() -> Self {
+        Self::new_internal(false)
+    }
+
+    #[inline(always)]
+    pub fn new_notify_all() -> Self {
+        Self::new_internal(true)
+    }
+
+    #[inline(always)]
+    fn new_internal(all: bool) -> Self {
         Self {
-            once: Once::new(),
+            cell: UnsafeCell::new(MaybeUninit::uninit()),
+            status: AtomicU8::new(if all { STATUS_NOTIFY_ALL } else { 0 }),
             flag: Notify::new(),
-            cell: UnsafeCell::new(None),
         }
     }
+
+    /// set value and returns OK if empty, otherwise returns the Value;
+    /// notify all waiters
     #[inline(always)]
-    pub fn set(&self, val: T) {
-        self.once.call_once(|| {
-            unsafe {
-                *self.cell.get() = Some(val);
+    pub fn set(&self, val: T) -> std::result::Result<(), T> {
+        let mut cur = self.status.load(Ordering::Acquire);
+        loop {
+            if cur == 0 || cur == STATUS_NOTIFY_ALL {
+                let dest = cur | STATUS_LOCKED;
+                let res =
+                    self.status
+                        .compare_exchange(cur, dest, Ordering::AcqRel, Ordering::Acquire);
+                match res {
+                    Ok(v) => {
+                        //lock taken
+                        unsafe {
+                            let holder = &mut *self.cell.get();
+                            holder.as_mut_ptr().write(val);
+                        }
+                        self.status.store(v | STATUS_VALUE_SET, Ordering::Release);
+                        if v & STATUS_NOTIFY_ALL == STATUS_NOTIFY_ALL {
+                            self.flag.notify_waiters();
+                        } else {
+                            self.flag.notify_one();
+                        }
+                        return Ok(());
+                    }
+                    Err(v) => {
+                        cur = v;
+                    }
+                }
             }
-            self.flag.notify_one();
-        })
+            // value has been set
+            if cur & STATUS_VALUE_SET == STATUS_VALUE_SET {
+                return Err(val);
+            }
+            // locked by another thread
+            if cur & STATUS_LOCKED == STATUS_LOCKED {
+                hint::spin_loop();
+                continue;
+            }
+            unreachable!();
+        }
     }
+
+    pub fn is_set(&self) -> bool {
+        let status = self.status.load(Ordering::Acquire);
+        status & STATUS_VALUE_SET == STATUS_VALUE_SET
+    }
+
+    fn get_unchecked(&self) -> Option<&T> {
+        let status = self.status.load(Ordering::Relaxed);
+        if status & STATUS_VALUE_SET == STATUS_VALUE_SET {
+            Some(unsafe { &*(*self.cell.get()).as_ptr() })
+        } else {
+            None
+        }
+    }
+
+    pub fn get(&self) -> Option<&T> {
+        let status = self.status.load(Ordering::Acquire);
+        if status & STATUS_VALUE_SET == STATUS_VALUE_SET {
+            Some(unsafe { &*(*self.cell.get()).as_ptr() })
+        } else {
+            None
+        }
+    }
+
     #[inline(always)]
-    pub async fn take(&self) -> T {
+    pub async fn wait(&self) -> &T {
+        if let Some(v) = self.get() {
+            return v;
+        }
         self.flag.notified().await;
-        let holder = unsafe { &mut *self.cell.get() };
-        holder.take().expect("OnceCell: cannot be None here")
+        if let Some(v) = self.get() {
+            v
+        } else {
+            unreachable!();
+        }
     }
 }
+
+impl<T> Drop for OnceCell<T> {
+    fn drop(&mut self) {
+        let status = self.status.load(Ordering::Acquire);
+        if status & STATUS_VALUE_SET == STATUS_VALUE_SET {
+            unsafe {
+                let holder = &mut *self.cell.get();
+                ptr::drop_in_place(holder.as_mut_ptr());
+            }
+        }
+    }
+}
+
 unsafe impl<T> Send for OnceCell<T> {}
 unsafe impl<T> Sync for OnceCell<T> {}
 
@@ -54,14 +152,14 @@ mod test {
                 let cell = Arc::clone(&cell);
                 let flag = Arc::clone(&flag);
                 task::spawn(async move {
-                    cell.set(1);
-                    cell.set(2);
+                    let _ = cell.set(1);
+                    let _ = cell.set(2);
                     flag.notify_one();
                 })
             };
             flag.notified().await;
-            let v: i32 = cell.take().await;
-            assert_eq!(v, 1);
+            let v: &i32 = cell.wait().await;
+            assert_eq!(v, &1);
         });
         Ok(())
     }

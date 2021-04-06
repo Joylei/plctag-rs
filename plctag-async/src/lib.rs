@@ -140,7 +140,7 @@ impl<T> AsRef<T> for TagRef<'_, T> {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
 
     #[test]

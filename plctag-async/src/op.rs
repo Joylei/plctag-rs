@@ -61,7 +61,7 @@ impl<'a> Operation<'a> {
                     Event::Aborted | Event::Destroyed => (),
                     _ => return,
                 }
-                cell.set(status);
+                let _ = cell.set(status);
             })
         };
         self.pending = true;
@@ -71,7 +71,7 @@ impl<'a> Operation<'a> {
             self.tag.write(0)
         };
         if status.is_pending() {
-            status = cell.take().await;
+            status = *cell.wait().await;
             debug_assert!(!status.is_pending());
         }
         self.pending = false;

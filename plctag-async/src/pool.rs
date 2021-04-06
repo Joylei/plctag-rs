@@ -1,49 +1,91 @@
-use crate::{Error, Result, TagRef};
+use crate::{cell::OnceCell, Result, TagRef};
 
 use plctag::{RawTag, Status};
 
-use parking_lot::{RwLock, RwLockUpgradableReadGuard};
+use parking_lot::Mutex;
 use std::{
-    cell::UnsafeCell,
     collections::{BTreeSet, HashMap},
     future::Future,
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        Arc,
-    },
+    ops::Deref,
+    sync::Arc,
 };
 
 use tokio::{
-    sync::Notify,
+    sync::{mpsc, Notify},
     task,
     time::{self, Duration, Instant},
 };
 
 #[doc(hidden)]
 pub trait Initialize: Send + Sync {
-    fn create(path: String) -> Result<Self>
+    fn create(path: String) -> plctag::Result<Self>
     where
         Self: Sized;
     fn status(&self) -> Status;
 }
 
 impl Initialize for RawTag {
-    fn create(path: String) -> Result<Self> {
+    #[inline(always)]
+    fn create(path: String) -> plctag::Result<Self> {
         let tag = RawTag::new(path, 0)?;
         Ok(tag)
     }
 
+    #[inline(always)]
     fn status(&self) -> Status {
         RawTag::status(self)
     }
 }
 
 #[derive(Debug)]
-pub struct Pool<T: Initialize> {
-    shared: Arc<Shared<T>>,
+pub struct PoolOptions {
+    expire_after: Duration,
+    fault_last: Duration,
+}
+
+impl PoolOptions {
+    #[inline]
+    pub fn new() -> Self {
+        Self {
+            expire_after: Duration::from_secs(60),
+            fault_last: Duration::from_secs(1),
+        }
+    }
+
+    /// default for 60 seconds
+    #[inline]
+    pub fn expire_after(mut self, period: Duration) -> Self {
+        self.expire_after = period;
+        self
+    }
+
+    #[inline]
+    pub fn fault_last(mut self, period: Duration) -> Self {
+        self.fault_last = period;
+        self
+    }
+
+    #[inline]
+    pub fn create<T: Initialize + 'static>(self) -> Pool<T> {
+        Pool::new_with_options(self)
+    }
+}
+
+impl Default for PoolOptions {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Tag Pool
+#[derive(Debug)]
+pub struct Pool<T> {
+    shared: Arc<Wrapper<T>>,
 }
 
 impl<T: Initialize> Clone for Pool<T> {
+    #[inline(always)]
     fn clone(&self) -> Self {
         Self {
             shared: Arc::clone(&self.shared),
@@ -52,55 +94,68 @@ impl<T: Initialize> Clone for Pool<T> {
 }
 
 impl<T: Initialize + 'static> Pool<T> {
+    #[inline]
     pub fn new() -> Self {
-        let shared = Arc::new(Shared::new());
-        {
-            task::spawn(scan_tags_task(shared.clone()));
-        }
-        Self { shared }
+        Self::new_with_options(Default::default())
+    }
+
+    #[inline]
+    fn new_with_options(options: PoolOptions) -> Self {
+        let (tx, rx) = mpsc::unbounded_channel();
+        let scan_task = ScanTask::new(tx);
+        let shared = Arc::new(Shared::new(options, scan_task));
+        let wrapper = Arc::new(Wrapper(shared));
+        task::spawn(purge_expired_tags_task(Arc::clone(&wrapper)));
+        task::spawn(scan_tags_task(rx, Arc::clone(&wrapper)));
+
+        Self { shared: wrapper }
     }
 
     /// get or create tag, returns after created
-    pub async fn entry(&self, options: impl AsRef<str>) -> Result<Entry<T>> {
-        let mut pending = false;
-        let mut state = {
-            let reader = self.shared.state.upgradable_read();
-            if let Some(tag) = reader.get_tag_by_path(options.as_ref()) {
-                tag.clone()
+    #[inline]
+    pub async fn entry(&self, tag_path: impl AsRef<str>) -> Result<Entry<T>> {
+        let entry = {
+            let state = &mut *self.shared.state.lock();
+            if let Some(entry) = state.will_alive(tag_path.as_ref()) {
+                entry.clone()
             } else {
                 // create if not exist
-                let state = {
-                    let mut writer = RwLockUpgradableReadGuard::upgrade(reader);
-                    writer.add_tag(options.as_ref().to_owned())
-                };
-                pending = true;
-                state
+                let res = state.add_entry(tag_path.as_ref().to_owned())?;
+                //add for scanning
+                self.shared.scan_task.add(Arc::clone(&res.state));
+                res
             }
         };
 
-        if pending {
-            create_tag_task(self.shared.clone(), &mut state).await;
-        }
-        state.connect().await?;
-        Ok(state)
+        Ok(Entry {
+            inner: entry,
+            shared: Arc::clone(&self.shared.0),
+        })
     }
 
-    /// remove tag from pool
-    pub fn remove(&self, options: &str) -> Option<Entry<T>> {
-        let reader = self.shared.state.upgradable_read();
-        if let Some(tag) = reader.get_tag_by_path(options) {
-            let id = tag.id();
-            let mut writer = RwLockUpgradableReadGuard::upgrade(reader);
-            writer.tag_keys.remove(options);
-            writer.tags.remove(&id)
-        } else {
-            None
-        }
+    /// remove entry from pool
+    #[inline]
+    pub fn remove(&self, tag_path: &str) -> Option<Entry<T>> {
+        let mut state = self.shared.state.lock();
+        state.remove_entry(tag_path).map(|item| {
+            self.shared.scan_task.remove(item.id());
+            Entry {
+                inner: item.inner,
+                shared: Arc::clone(&self.shared.0),
+            }
+        })
     }
 
+    #[inline(always)]
+    pub fn contains(&self, tag_path: &str) -> bool {
+        let state = self.shared.state.lock();
+        state.tag_by_path(tag_path).is_some()
+    }
+
+    #[inline(always)]
     pub fn len(&self) -> usize {
-        let reader = self.shared.state.read();
-        reader.tags.len()
+        let state = self.shared.state.lock();
+        state.entries.len()
     }
 
     pub async fn for_each<F, Fut>(&self, f: F) -> Result<()>
@@ -108,26 +163,37 @@ impl<T: Initialize + 'static> Pool<T> {
         F: Fn(Entry<T>) -> Fut,
         Fut: Future<Output = Result<()>>,
     {
-        let reader = self.shared.state.read();
-        let tags = reader.tags.clone();
-        drop(reader);
-        for (_, entry) in tags {
+        let state = self.shared.state.lock();
+        let entries: Vec<_> = state
+            .entries
+            .values()
+            .map(|item| item.inner.clone())
+            .collect();
+        drop(state);
+        for item in entries {
+            let entry = Entry {
+                inner: item,
+                shared: Arc::clone(&self.shared.0),
+            };
             f(entry).await?;
         }
         Ok(())
     }
 }
 
-impl<T: Initialize> Drop for Pool<T> {
+impl<T> Drop for Pool<T> {
     fn drop(&mut self) {
         // - this ref
+        // - purge task
         // - scan task
-        if Arc::strong_count(&self.shared) == 2 {
-            {
-                let mut writer = self.shared.state.write();
-                writer.shutdown = true;
-            }
-            self.shared.scan_task.notify_one();
+        if Arc::strong_count(&self.shared) == 3 {
+            dbg!("drop pool");
+            let mut state = self.shared.state.lock();
+            state.shutdown = true;
+            drop(state);
+            // send signals to tasks
+            self.shared.purge_task.notify_one();
+            self.shared.scan_task.flag.notify_one();
         }
     }
 }
@@ -138,329 +204,459 @@ impl<T: Initialize + 'static> Default for Pool<T> {
     }
 }
 
-const CREATION_EMPTY: u8 = 0;
-const CREATION_HAS_INSTANCE: u8 = 1;
-const CREATION_DONE: u8 = 2;
+#[derive(Debug)]
+struct Wrapper<T>(Arc<Shared<T>>);
 
-struct CreationStatus(u8);
-impl CreationStatus {
+impl<T> Deref for Wrapper<T> {
+    type Target = Shared<T>;
     #[inline(always)]
-    fn load(flag: &AtomicU8, order: Ordering) -> Self {
-        Self(flag.load(order))
-    }
-    #[inline(always)]
-    fn is_empty(&self) -> bool {
-        self.0 == CREATION_EMPTY
-    }
-    #[inline(always)]
-    fn has_instance(&self) -> bool {
-        self.0 & CREATION_HAS_INSTANCE == CREATION_HAS_INSTANCE
-    }
-    #[inline(always)]
-    fn is_done(&self) -> bool {
-        self.0 & CREATION_DONE == CREATION_DONE
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
+/// Tag Entry State
 #[derive(Debug)]
-struct EntryInner<T> {
+struct EntryState<T> {
     /// unique id for this instance
     id: u64,
     /// tag options
     path: String,
-    tag: UnsafeCell<Option<T>>,
-    err: UnsafeCell<Result<()>>,
-    status: AtomicU8,
-    create_task: Notify,
+    tag: T,
+    err_status: OnceCell<Status>,
 }
 
-unsafe impl<T> Send for EntryInner<T> {}
-unsafe impl<T> Sync for EntryInner<T> {}
+unsafe impl<T> Send for EntryState<T> {}
+unsafe impl<T> Sync for EntryState<T> {}
 
 #[derive(Debug)]
-pub struct Entry<T> {
-    inner: Arc<EntryInner<T>>,
-    lock: Arc<tokio::sync::Mutex<()>>,
+pub struct Entry<T: Initialize> {
+    inner: EntryInner<T>,
+    shared: Arc<Shared<T>>,
+}
+
+impl<T: Initialize> Drop for Entry<T> {
+    fn drop(&mut self) {
+        dbg!(Arc::strong_count(&self.inner.lock));
+        let should_expire = Arc::strong_count(&self.inner.lock) == 2;
+        if should_expire {
+            dbg!(format!(
+                "PoolState: entry[{}] will expire",
+                self.inner.state.id
+            ));
+            //already set expiration for error state, skip
+            self.shared.will_expire(self.inner.state.id, false, None);
+        }
+    }
 }
 
 impl<T: Initialize> Clone for Entry<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
-            inner: Arc::clone(&self.inner),
-            lock: Arc::clone(&self.lock),
+            inner: self.inner.clone(),
+            shared: Arc::clone(&self.shared),
         }
     }
 }
 
 impl<T: Initialize> Entry<T> {
-    #[inline]
-    fn new(id: u64, path: String) -> Self {
-        Self {
-            inner: Arc::new(EntryInner {
-                id,
-                path,
-                tag: UnsafeCell::new(None),
-                err: UnsafeCell::new(Ok(())),
-                status: AtomicU8::new(CREATION_EMPTY),
-                create_task: Notify::new(),
-            }),
-            lock: Arc::new(tokio::sync::Mutex::new(())),
-        }
+    #[inline(always)]
+    pub async fn get(&self) -> Result<TagRef<'_, T>> {
+        self.inner.connect().await?;
+        let lock = self.inner.lock.lock().await;
+        let tag = self.inner.tag();
+        Ok(TagRef { tag, lock })
+    }
+}
+
+#[derive(Debug)]
+struct EntryInner<T> {
+    state: Arc<EntryState<T>>,
+    lock: Arc<tokio::sync::Mutex<()>>,
+}
+
+impl<T: Initialize> EntryInner<T> {
+    #[inline(always)]
+    async fn connect(&self) -> Result<()> {
+        let status = *self.state.err_status.wait().await;
+        status.into_result()?;
+        Ok(())
     }
 
     #[inline(always)]
     fn id(&self) -> u64 {
-        self.inner.id
+        self.state.id
     }
 
     #[inline(always)]
     fn path(&self) -> &str {
-        &self.inner.path
-    }
-
-    #[inline]
-    fn get_tag_unchecked(&self) -> &T {
-        if let Some(res) = unsafe { &*self.inner.tag.get() } {
-            res
-        } else {
-            panic!("bad usage, tag not ready yet")
-        }
+        &self.state.path
     }
     #[inline(always)]
-    fn has_instance(&self) -> bool {
-        //relax
-        let status = CreationStatus::load(&self.inner.status, Ordering::Relaxed);
-        if status.has_instance() {
-            return true;
-        }
-        let status = CreationStatus::load(&self.inner.status, Ordering::Acquire);
-        status.has_instance()
+    fn tag(&self) -> &T {
+        &self.state.tag
     }
     #[inline(always)]
-    fn is_done(&self) -> bool {
-        //relax
-        let status = CreationStatus::load(&self.inner.status, Ordering::Relaxed);
-        if status.is_done() {
-            return true;
+    fn is_err(&self) -> bool {
+        if let Some(status) = self.state.err_status.get() {
+            return status.is_err();
         }
-        let status = CreationStatus::load(&self.inner.status, Ordering::Acquire);
-        status.is_done()
+        false
     }
-    #[inline(always)]
-    fn check_status(&self) -> Option<Status> {
-        if !self.has_instance() {
-            return None;
+}
+
+impl<T> Clone for EntryInner<T> {
+    fn clone(&self) -> Self {
+        Self {
+            state: Arc::clone(&self.state),
+            lock: Arc::clone(&self.lock),
         }
-        Some(self.get_tag_unchecked().status())
-    }
-
-    fn set_tag(&mut self, res: Result<T>) {
-        match res {
-            Ok(tag) => {
-                let status = CreationStatus::load(&self.inner.status, Ordering::Acquire);
-                if !status.is_empty() {
-                    return;
-                }
-                let holder = unsafe { &mut *self.inner.tag.get() };
-                if holder.is_none() {
-                    *holder = Some(tag);
-                    self.inner
-                        .status
-                        .store(CREATION_HAS_INSTANCE, Ordering::Release);
-                }
-            }
-            Err(e) => {
-                self.set_err(Err(e));
-            }
-        };
-    }
-
-    fn set_err(&mut self, res: Result<()>) {
-        let status = CreationStatus::load(&self.inner.status, Ordering::Acquire);
-        if status.is_done() {
-            return;
-        }
-
-        if let Err(Error::TagError(ref e)) = res {
-            if e.is_pending() {
-                panic!("should not be pending status here");
-            }
-        }
-
-        // set err
-        let holder = unsafe { &mut *self.inner.err.get() };
-        *holder = res;
-
-        //set status
-        self.inner
-            .status
-            .store(status.0 | CREATION_DONE, Ordering::Release);
-
-        //notify awaiters
-        self.inner.create_task.notify_waiters();
-    }
-
-    #[inline(always)]
-    async fn connect(&self) -> Result<()> {
-        if !self.is_done() {
-            self.inner.create_task.notified().await;
-        }
-        let res = unsafe { &*self.inner.err.get() };
-        res.clone()
-    }
-
-    pub async fn get(&self) -> Result<TagRef<'_, T>> {
-        self.connect().await?;
-        let lock = self.lock.lock().await;
-        let raw = self.get_tag_unchecked();
-        Ok(TagRef { tag: raw, lock })
     }
 }
 
 #[derive(Debug)]
-struct State<T: Initialize> {
-    tags: HashMap<u64, Entry<T>>,
+struct EntryHolder<T> {
+    inner: EntryInner<T>,
+    will_expire: Option<Instant>,
+}
+
+impl<T: Initialize> EntryHolder<T> {
+    #[inline]
+    fn new(id: u64, path: String, tag: T) -> Self {
+        Self {
+            inner: EntryInner {
+                state: Arc::new(EntryState {
+                    id,
+                    path,
+                    tag,
+                    err_status: OnceCell::new_notify_all(),
+                }),
+                lock: Arc::new(tokio::sync::Mutex::new(())),
+            },
+            will_expire: None,
+        }
+    }
+}
+
+impl<T> Deref for EntryHolder<T> {
+    type Target = EntryInner<T>;
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[derive(Debug)]
+struct PoolState<T> {
+    ///all tags
+    entries: HashMap<u64, EntryHolder<T>>,
     /// ref tags by tag path
-    tag_keys: HashMap<String, u64>,
-    /// ref tags when scanning tag status
-    creation: BTreeSet<(Instant, u64)>,
+    entry_keys: HashMap<String, u64>,
+    expirations: BTreeSet<(Instant, u64)>,
+    /// for generating next entry id
     next_id: u64,
     shutdown: bool,
 }
 
-impl<T: Initialize> State<T> {
+impl<T: Initialize> PoolState<T> {
     #[inline(always)]
-    fn get_tag_by_path(&self, path: &str) -> Option<&Entry<T>> {
-        if let Some(id) = self.tag_keys.get(path) {
-            self.tags.get(id)
+    fn tag_by_path(&self, path: &str) -> Option<&EntryHolder<T>> {
+        if let Some(id) = self.entry_keys.get(path) {
+            self.entries.get(id)
         } else {
             None
         }
     }
-    #[inline(always)]
-    fn add_tag(&mut self, path: String) -> Entry<T> {
+
+    #[inline]
+    fn add_entry(&mut self, path: String) -> plctag::Result<EntryInner<T>> {
+        let tag = T::create(path.clone())?;
+
         let id = self.next_id;
         self.next_id += 1;
 
-        let state = Entry::new(id, path.clone());
-        {
-            let state = state.clone();
-            self.tag_keys.insert(path, id);
-            self.tags.insert(id, state);
-        }
-        state
-    }
-}
-
-#[derive(Debug)]
-struct Shared<T: Initialize> {
-    state: RwLock<State<T>>,
-    scan_task: Notify,
-}
-
-impl<T: Initialize> Shared<T> {
-    fn new() -> Self {
-        Self {
-            state: RwLock::new(State {
-                tags: HashMap::new(),
-                tag_keys: HashMap::new(),
-                creation: BTreeSet::new(),
-                next_id: 0,
-                shutdown: false,
-            }),
-            scan_task: Notify::new(),
-        }
+        let entry = EntryHolder::new(id, path.clone(), tag);
+        let inner = entry.inner.clone();
+        self.entry_keys.insert(path, id);
+        self.entries.insert(id, entry);
+        dbg!(format!("PoolState: entry[{}] added", id));
+        Ok(inner)
     }
 
-    fn is_shutdown(&self) -> bool {
-        let state = self.state.read();
-        state.shutdown
-    }
-
-    /// returns remaining tags count
-    fn scan_once(&self) -> Option<Instant> {
-        let reader = self.state.upgradable_read();
-        if reader.shutdown {
-            return None;
-        }
-
-        let mut writer = RwLockUpgradableReadGuard::upgrade(reader);
-        let now = Instant::now();
-        while let Some(&(when, id)) = writer.creation.iter().next() {
-            if when > now {
-                return Some(when);
+    #[inline]
+    fn remove_entry(&mut self, tag_path: &str) -> Option<EntryHolder<T>> {
+        if let Some(&id) = self.entry_keys.get(tag_path) {
+            if let Some(item) = self.entries.get_mut(&id) {
+                let id = item.id();
+                self.entry_keys.remove(item.inner.path());
+                if let Some(when) = item.will_expire {
+                    self.expirations.remove(&(when, id));
+                }
+                let res = self.entries.remove(&id);
+                dbg!(format!("PoolState: entry[{}] removed", id));
+                return res;
             }
-            //tag still exists?
-            if let Some(tag) = writer.tags.get_mut(&id) {
-                //check tag status()
-                if let Some(status) = tag.check_status() {
-                    //tag does exists and has status
-                    if status.is_pending() {
-                        //for further checking
-                        let next_time = now + Duration::from_millis(5);
-                        writer.creation.insert((next_time, id));
-                    } else {
-                        //into final state if OK or Error
-                        if status.is_ok() {
-                            tag.set_err(Ok(()));
-                        } else {
-                            tag.set_err(Err(status.into()));
-                        }
+        }
+        None
+    }
+
+    /// try to make entry alive if exists
+    #[inline]
+    fn will_alive(&mut self, tag_path: &str) -> Option<&EntryInner<T>> {
+        if let Some(&id) = self.entry_keys.get(tag_path) {
+            if let Some(item) = self.entries.get_mut(&id) {
+                let id = item.id();
+                let mut make_alive = true;
+                if let Some(status) = item.inner.state.err_status.get() {
+                    if status.is_err() {
+                        make_alive = false;
                     }
                 }
-            };
-            writer.creation.remove(&(when, id));
+
+                if make_alive {
+                    if let Some(when) = item.will_expire {
+                        self.expirations.remove(&(when, id));
+                    }
+                    item.will_expire = None;
+                    dbg!(format!("PoolState: entry[{}] will alive", item.id()));
+                }
+
+                return Some(&item.inner);
+            }
         }
         None
     }
 }
 
-async fn scan_tags_task<T: Initialize>(shared: Arc<Shared<T>>) {
-    while !shared.is_shutdown() {
-        if let Some(when) = shared.scan_once() {
-            tokio::select! {
-                _ = time::sleep_until(when) => {}
-                _ = shared.scan_task.notified() => {}
+#[derive(Debug)]
+struct Shared<T> {
+    state: Mutex<PoolState<T>>,
+    options: PoolOptions,
+    purge_task: Notify,
+    scan_task: ScanTask<T>,
+}
+
+impl<T: Initialize> Shared<T> {
+    fn new(options: PoolOptions, scan_task: ScanTask<T>) -> Self {
+        Self {
+            state: Mutex::new(PoolState {
+                entries: HashMap::new(),
+                entry_keys: HashMap::new(),
+                expirations: BTreeSet::new(),
+                next_id: 0,
+                shutdown: false,
+            }),
+            options,
+            purge_task: Notify::new(),
+            scan_task,
+        }
+    }
+
+    #[inline(always)]
+    fn is_shutdown(&self) -> bool {
+        let state = self.state.lock();
+        state.shutdown
+    }
+
+    fn purge_expirations(&self) -> Option<Instant> {
+        let state = &mut *self.state.lock();
+        if state.shutdown {
+            return None;
+        }
+        let now = Instant::now();
+        while let Some(&(when, id)) = state.expirations.iter().next() {
+            if when > now {
+                return Some(when);
             }
-        } else {
-            shared.scan_task.notified().await;
+            //expired now
+            if let Some(item) = state.entries.remove(&id) {
+                state.entry_keys.remove(item.path());
+            }
+            state.expirations.remove(&(when, id));
+        }
+        None
+    }
+
+    /// register tag entry for expiration
+    /// - is_err: true -> set expiration if in error state
+    /// - is_err: false -> set expiration if not in error state
+    fn will_expire(&self, id: u64, is_err: bool, given_expire: Option<Instant>) {
+        let state = &mut *self.state.lock();
+        if state.shutdown {
+            return;
+        }
+
+        let mut will_notify = false;
+        if let Some(item) = state.entries.get_mut(&id) {
+            //ensure state
+            if is_err != item.is_err() {
+                return;
+            }
+
+            let prev = item.will_expire.map(|when| (when, item.state.id));
+            let expire_at = if let Some(v) = given_expire {
+                v
+            } else {
+                Instant::now() + self.options.expire_after
+            };
+            // insert new
+            item.will_expire = Some(expire_at);
+            state.expirations.insert((expire_at, id));
+
+            //remove old
+            if let Some(key) = prev {
+                state.expirations.remove(&key);
+            }
+
+            will_notify = true;
+        }
+        drop(state);
+
+        //send signal
+        if will_notify {
+            self.purge_task.notify_one();
         }
     }
 }
 
-async fn create_tag_task<T: Initialize + 'static>(shared: Arc<Shared<T>>, state: &mut Entry<T>) {
-    let res = {
-        let path = state.path().to_owned();
-        task::spawn_blocking(move || T::create(path))
-            .await
-            .map_err(|e| e.into())
-            .and_then(|res| res)
-    };
-
-    let has_err = res.is_err();
-    state.set_tag(res);
-
-    {
-        let mut writer = shared.state.write();
-        if has_err {
-            writer.tag_keys.remove(state.path());
-            writer.tags.remove(&state.id());
+async fn purge_expired_tags_task<T: Initialize>(shared: Arc<Wrapper<T>>) {
+    while !shared.is_shutdown() {
+        if let Some(when) = shared.purge_expirations() {
+            tokio::select! {
+                _ = time::sleep_until(when) => {},
+                _ = shared.purge_task.notified() => {}
+            }
         } else {
-            //for further checking
-            let next_time = Instant::now() + Duration::from_millis(5);
-            writer.creation.insert((next_time, state.id()));
+            dbg!("purge_expired_tags_task: wait for signal");
+            shared.purge_task.notified().await;
+        }
+    }
+}
+
+enum CreationMessage<T> {
+    Add(Arc<EntryState<T>>),
+    Remove(u64),
+}
+
+/// with channels, no wait for mutex lock
+#[derive(Debug)]
+struct ScanTask<T> {
+    tx: mpsc::UnboundedSender<CreationMessage<T>>,
+    flag: Arc<Notify>,
+}
+
+impl<T: Initialize + 'static> ScanTask<T> {
+    pub fn new(tx: mpsc::UnboundedSender<CreationMessage<T>>) -> Self {
+        Self {
+            tx,
+            flag: Arc::new(Notify::new()),
         }
     }
 
-    if !has_err {
-        shared.scan_task.notify_one();
+    #[inline(always)]
+    pub fn add(&self, item: Arc<EntryState<T>>) {
+        self.tx.send(CreationMessage::Add(item)).ok();
+    }
+
+    #[inline(always)]
+    pub fn remove(&self, id: u64) {
+        self.tx.send(CreationMessage::Remove(id)).ok();
+    }
+}
+
+/// message loop task will exit if channel closed;
+/// => [`ScanTask`] drops;
+/// => [`Shared`] drops;
+async fn creation_message_loop<T: Initialize + 'static>(
+    mut rx: mpsc::UnboundedReceiver<CreationMessage<T>>,
+    flag: Arc<Notify>,
+    state: Arc<tokio::sync::Mutex<HashMap<u64, Arc<EntryState<T>>>>>,
+) {
+    loop {
+        if let Some(m) = rx.recv().await {
+            match m {
+                CreationMessage::Add(item) => {
+                    dbg!(format!("scan_tags_task: entry[{}] add", item.id));
+                    let mut state = state.lock().await;
+                    state.insert(item.id, item);
+                    flag.notify_one();
+                }
+                CreationMessage::Remove(id) => {
+                    dbg!(format!("scan_tags_task: entry[{}] remove", id));
+                    let mut state = state.lock().await;
+                    state.remove(&id);
+                }
+            }
+        } else {
+            //channel closed
+            break;
+        }
+    }
+}
+
+/// scan tags creation status;
+// task ends when shutdown signal received and no more items to process
+async fn scan_tags_task<T: Initialize + 'static>(
+    rx: mpsc::UnboundedReceiver<CreationMessage<T>>,
+    shared: Arc<Wrapper<T>>,
+) {
+    let flag = &shared.scan_task.flag;
+    let state = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
+    //recv messages
+    task::spawn(creation_message_loop(
+        rx,
+        Arc::clone(flag),
+        Arc::clone(&state),
+    ));
+
+    loop {
+        dbg!("scan_tags_task: scan once");
+        let count = {
+            let state = &mut *state.lock().await;
+            let mut count = state.len();
+            if count > 0 {
+                let keys: Vec<_> = state.keys().map(|v| *v).collect();
+                for id in keys {
+                    if let Some(entry) = state.get_mut(&id) {
+                        let status = entry.tag.status();
+                        if !status.is_pending() {
+                            dbg!(format!("scan_tags_task: entry[{}] initialized", id));
+                            let _ = entry.err_status.set(status);
+                            state.remove(&id);
+
+                            // in error state, set expired so it will be removed later
+                            if status.is_err() {
+                                let when = Instant::now() + shared.options.fault_last;
+                                dbg!(format!("scan_tags_task: entry[{}] will expire", id));
+                                shared.will_expire(id, true, Some(when));
+                            }
+                        }
+                    }
+                }
+                count = state.len();
+            }
+            drop(state);
+            count
+        };
+        // no more items, wait for signal
+        if count == 0 {
+            if shared.is_shutdown() {
+                break;
+            }
+            dbg!("scan_tags_task: wait for signal");
+            flag.notified().await;
+        } else {
+            time::sleep(Duration::from_millis(1)).await;
+        }
     }
 }
 
 #[allow(dead_code)]
 #[cfg(test)]
 mod test {
+    use std::sync::atomic::{AtomicU8, Ordering};
+
     use super::*;
     use plctag::ffi;
 
@@ -476,7 +672,7 @@ mod test {
     }
 
     impl Initialize for FakeTag {
-        fn create(path: String) -> Result<Self>
+        fn create(path: String) -> plctag::Result<Self>
         where
             Self: Sized,
         {
@@ -511,14 +707,7 @@ mod test {
             let res = pool.entry("err").await;
             assert!(res.is_err());
 
-            {
-                let reader = pool.shared.state.read();
-                assert!(reader.creation.is_empty());
-                assert!(reader.tags.is_empty());
-                assert!(reader.tag_keys.is_empty());
-            }
-
-            drop(pool);
+            assert_eq!(pool.len(), 0);
         });
         Ok(())
     }
@@ -529,12 +718,13 @@ mod test {
         rt.block_on(async {
             let pool: Pool<FakeTag> = Pool::new();
             let res = pool.entry("timeout").await;
+            let entry = res.unwrap();
+            assert_eq!(pool.len(), 1);
+            let res = entry.get().await;
             assert!(res.is_err());
-
-            {
-                let reader = pool.shared.state.read();
-                assert!(reader.creation.is_empty());
-            }
+            drop(res);
+            drop(entry);
+            assert_eq!(pool.len(), 1);
 
             drop(pool);
         });
@@ -563,13 +753,8 @@ mod test {
             };
 
             let _ = tokio::join!(task1, task2);
-            {
-                let reader = pool.shared.state.read();
-                assert!(reader.creation.is_empty());
-                assert!(reader.tags.len() == 1);
-                assert!(reader.tag_keys.len() == 1);
-            }
-            drop(pool);
+
+            assert_eq!(pool.len(), 1);
         });
         Ok(())
     }
@@ -604,13 +789,7 @@ mod test {
             };
 
             let _ = tokio::join!(task1, task2, task3);
-            {
-                let reader = pool.shared.state.read();
-                assert!(reader.creation.is_empty());
-                assert!(reader.tags.len() == 2);
-                assert!(reader.tag_keys.len() == 2);
-            }
-            drop(pool);
+            assert_eq!(pool.len(), 2);
         });
         Ok(())
     }
@@ -622,20 +801,46 @@ mod test {
             let pool: Pool<FakeTag> = Pool::new();
             let res = pool.entry("one_tag").await;
             assert!(res.is_ok());
-            {
-                let reader = pool.shared.state.read();
-                assert!(reader.creation.is_empty());
-                assert!(reader.tags.len() == 1);
-                assert!(reader.tag_keys.len() == 1);
-            }
+            assert_eq!(pool.len(), 1);
             pool.remove("one_tag");
-            {
-                let reader = pool.shared.state.read();
-                assert!(reader.creation.is_empty());
-                assert!(reader.tags.len() == 0);
-                assert!(reader.tag_keys.len() == 0);
-            }
-            drop(pool);
+            assert_eq!(pool.len(), 0);
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn test_expire_for_normal() -> anyhow::Result<()> {
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            let pool: Pool<FakeTag> = PoolOptions::default()
+                .expire_after(Duration::from_millis(100))
+                .create();
+            let res = pool.entry("one_tag").await;
+            assert!(res.is_ok());
+            assert_eq!(pool.len(), 1);
+            drop(res);
+            time::sleep(Duration::from_millis(150)).await;
+            assert_eq!(pool.len(), 0);
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn test_expire_for_error() -> anyhow::Result<()> {
+        let rt = tokio::runtime::Runtime::new()?;
+        rt.block_on(async {
+            let pool: Pool<FakeTag> = PoolOptions::default()
+                .fault_last(Duration::from_millis(100))
+                .create();
+            let res = pool.entry("timeout").await;
+            let entry = res.unwrap();
+            assert_eq!(pool.len(), 1);
+            let res = entry.get().await;
+            assert!(res.is_err());
+            drop(res);
+            drop(entry);
+            time::sleep(Duration::from_millis(150)).await;
+            assert_eq!(pool.len(), 0);
         });
         Ok(())
     }
