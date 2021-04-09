@@ -107,7 +107,7 @@ impl std::error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::TagError(e) => fmt::Display::fmt(e, f),
+            Error::TagError(e) => write!(f, "TagError - {}", e),
             Error::JoinError => write!(f, "Task Join Error"),
         }
     }
