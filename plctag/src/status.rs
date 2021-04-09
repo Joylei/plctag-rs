@@ -6,7 +6,7 @@ pub const PLCTAG_STATUS_OK: i32 = ffi::PLCTAG_STATUS_OK as i32;
 pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
 
 /// plc tag error code representations
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub enum Status {
     /// PLCTAG_STATUS_OK = 0
     Ok,
@@ -112,6 +112,13 @@ impl fmt::Display for Status {
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.decode())
+    }
+}
+
+impl fmt::Debug for Status {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let rc: i32 = (*self).into();
+        write!(f, "STATUS {}: {}", &rc, self.decode())
     }
 }
 
