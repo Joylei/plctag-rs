@@ -7,12 +7,12 @@ use std::{
     hash::Hash,
 };
 
-use crate::{ffi, Status};
+use crate::{ffi, Status, TagId};
 
 #[inline(always)]
 pub(crate) fn listen<F>(tag_id: &i32, f: F) -> Handler<'_>
 where
-    F: FnMut(i32, Event, Status) + Send + Sync + Clone + 'static,
+    F: FnMut(TagId, Event, Status) + Send + Sync + Clone + 'static,
 {
     EVENTS.add_handler(tag_id, f)
 }
@@ -129,11 +129,11 @@ impl<F: Clone> ListenerImpl<F> {
 
 impl<F> Listener for ListenerImpl<F>
 where
-    F: FnMut(i32, Event, Status) + Clone + Send + Sync + 'static,
+    F: FnMut(TagId, Event, Status) + Clone + Send + Sync + 'static,
 {
     #[inline(always)]
     fn invoke(&mut self, tag_id: i32, evt: Event, status: Status) {
-        (&mut self.f)(tag_id, evt, status);
+        (&mut self.f)(TagId(tag_id), evt, status);
     }
 }
 
@@ -193,7 +193,7 @@ impl EventRegistry {
 
     fn add_handler<'t, F>(&self, tag_id: &'t i32, f: F) -> Handler<'t>
     where
-        F: FnMut(i32, Event, Status) + Send + Sync + Clone + 'static,
+        F: FnMut(TagId, Event, Status) + Send + Sync + Clone + 'static,
     {
         let handler_id = {
             let mut writer = self.0.write();

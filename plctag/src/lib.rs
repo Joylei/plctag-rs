@@ -20,7 +20,7 @@ mod status;
 mod value;
 
 pub type Result<T> = std::result::Result<T, Status>;
-pub use raw::RawTag;
+pub use raw::{RawTag, TagId};
 pub use status::Status;
 
 #[cfg(feature = "value")]
