@@ -366,7 +366,7 @@ impl RawTag {
     where
         F: FnMut(i32, Event, Status) + Send + Sync + Clone + 'static,
     {
-        listen(self.tag_id, f)
+        listen(&self.tag_id, f)
     }
 
     /// Abort the pending operation.

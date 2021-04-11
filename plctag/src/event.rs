@@ -10,7 +10,7 @@ use std::{
 use crate::{ffi, Status};
 
 #[inline(always)]
-pub(crate) fn listen<F>(tag_id: i32, f: F) -> Handler
+pub(crate) fn listen<F>(tag_id: &i32, f: F) -> Handler<'_>
 where
     F: FnMut(i32, Event, Status) + Send + Sync + Clone + 'static,
 {
@@ -52,6 +52,7 @@ impl fmt::Display for Event {
 }
 
 impl Hash for Event {
+    #[inline]
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let v = (*self).into();
         state.write_i32(v);
@@ -66,6 +67,7 @@ const PLCTAG_EVENT_ABORTED: i32 = ffi::PLCTAG_EVENT_ABORTED as i32;
 const PLCTAG_EVENT_DESTROYED: i32 = ffi::PLCTAG_EVENT_DESTROYED as i32;
 
 impl From<i32> for Event {
+    #[inline]
     fn from(evt: i32) -> Self {
         use Event::*;
         match evt {
@@ -81,6 +83,7 @@ impl From<i32> for Event {
 }
 
 impl From<Event> for i32 {
+    #[inline]
     fn from(evt: Event) -> i32 {
         use Event::*;
         match evt {
@@ -96,12 +99,13 @@ impl From<Event> for i32 {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-pub struct Handler {
-    tag_id: i32,
+pub struct Handler<'t> {
+    tag_id: &'t i32,
     handler_id: u64,
 }
 
-impl Drop for Handler {
+impl Drop for Handler<'_> {
+    #[inline]
     fn drop(&mut self) {
         EVENTS.remove_handler(&self);
     }
@@ -117,6 +121,7 @@ struct ListenerImpl<F: Clone> {
 }
 
 impl<F: Clone> ListenerImpl<F> {
+    #[inline]
     fn new(f: F) -> Self {
         Self { f }
     }
@@ -186,7 +191,7 @@ impl EventRegistry {
         writer.remove_handler(&h);
     }
 
-    fn add_handler<F>(&self, tag_id: i32, f: F) -> Handler
+    fn add_handler<'t, F>(&self, tag_id: &'t i32, f: F) -> Handler<'t>
     where
         F: FnMut(i32, Event, Status) + Send + Sync + Clone + 'static,
     {
@@ -196,7 +201,7 @@ impl EventRegistry {
             let handler_id = writer.next_handler_id;
             writer.next_handler_id += 1;
             let h: Box<dyn Listener + 'static> = Box::new(ListenerImpl::new(f));
-            match writer.handlers.entry(tag_id) {
+            match writer.handlers.entry(*tag_id) {
                 Entry::Occupied(mut e) => {
                     e.get_mut().insert(handler_id.clone(), h);
                 }
@@ -204,7 +209,7 @@ impl EventRegistry {
                     let mut handlers = HashMap::new();
                     handlers.insert(handler_id.clone(), h);
                     e.insert(handlers);
-                    let rc = unsafe { ffi::plc_tag_register_callback(tag_id, Some(on_event)) };
+                    let rc = unsafe { ffi::plc_tag_register_callback(*tag_id, Some(on_event)) };
                     debug_assert_eq!(rc, ffi::PLCTAG_STATUS_OK as i32);
                 }
             }
