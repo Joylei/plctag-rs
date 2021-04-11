@@ -1,4 +1,4 @@
-use crate::{cell::OnceCell, Result, TagRef};
+use crate::{cell::OnceCell, private::TagRef, Result};
 
 use plctag::{RawTag, Status};
 

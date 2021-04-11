@@ -31,7 +31,7 @@ pub trait AsyncTag: AsRef<RawTag> {
     }
 }
 
-impl AsyncTag for TagRef<'_, RawTag> {}
+impl AsyncTag for TagRef<'_> {}
 
 /// ensures that pending operation get aborted if not successful
 struct Operation<'a> {

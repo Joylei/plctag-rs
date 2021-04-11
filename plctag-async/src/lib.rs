@@ -89,7 +89,7 @@ use tokio::task::{self, JoinError};
 /// To remove tag instance from [`Pool`], you can call [`Pool::remove`]
 pub type Pool = pool::Pool<RawTag>;
 pub type PoolEntry = pool::Entry<RawTag>;
-
+pub type TagRef<'a> = private::TagRef<'a, RawTag>;
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
@@ -125,17 +125,19 @@ impl From<JoinError> for Error {
     }
 }
 
-/// exclusive tag ref to ensure thread and operations safety
-pub struct TagRef<'a, T> {
-    tag: &'a T,
-    #[allow(dead_code)]
-    lock: tokio::sync::MutexGuard<'a, ()>,
-}
+mod private {
+    /// exclusive tag ref to ensure thread and operations safety
+    pub struct TagRef<'a, T> {
+        pub(crate) tag: &'a T,
+        #[allow(dead_code)]
+        pub(crate) lock: tokio::sync::MutexGuard<'a, ()>,
+    }
 
-impl<T> AsRef<T> for TagRef<'_, T> {
-    #[inline(always)]
-    fn as_ref(&self) -> &T {
-        &self.tag
+    impl<T> AsRef<T> for TagRef<'_, T> {
+        #[inline(always)]
+        fn as_ref(&self) -> &T {
+            &self.tag
+        }
     }
 }
 

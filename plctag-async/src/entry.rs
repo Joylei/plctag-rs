@@ -50,7 +50,7 @@ impl TagEntry {
         })
     }
 
-    pub async fn get(&self) -> Result<TagRef<'_, RawTag>> {
+    pub async fn get(&self) -> Result<TagRef<'_>> {
         let lock = self.inner.lock.lock().await;
         let tag = &self.inner.tag;
         Ok(TagRef { tag, lock })
