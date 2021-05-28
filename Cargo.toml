@@ -1,5 +1,5 @@
 [workspace]
-members = ["plctag-async", "plctag-co", "plctag", "plctag-sys", "plctag-log"]
+members = ["plctag-async", "plctag", "plctag-sys", "plctag-log"]
 [build]
 rustc-wrapper = "sccache"
 
