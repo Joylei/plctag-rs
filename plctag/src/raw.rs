@@ -190,6 +190,7 @@ impl RawTag {
         let rc = unsafe { ffi::plc_tag_set_uint8(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_i16(&self, byte_offset: u32) -> Result<i16> {
         let val = unsafe { ffi::plc_tag_get_int16(self.tag_id, byte_offset as i32) };
@@ -204,6 +205,7 @@ impl RawTag {
         let rc = unsafe { ffi::plc_tag_set_int16(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_u16(&self, byte_offset: u32) -> Result<u16> {
         let val = unsafe { ffi::plc_tag_get_uint16(self.tag_id, byte_offset as i32) };
@@ -212,11 +214,13 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_u16(&self, byte_offset: u32, value: u16) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint16(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_i32(&self, byte_offset: u32) -> Result<i32> {
         let val = unsafe { ffi::plc_tag_get_int32(self.tag_id, byte_offset as i32) };
@@ -225,11 +229,13 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_i32(&self, byte_offset: u32, value: i32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int32(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_u32(&self, byte_offset: u32) -> Result<u32> {
         let val = unsafe { ffi::plc_tag_get_uint32(self.tag_id, byte_offset as i32) };
@@ -238,11 +244,13 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_u32(&self, byte_offset: u32, value: u32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint32(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_i64(&self, byte_offset: u32) -> Result<i64> {
         let val = unsafe { ffi::plc_tag_get_int64(self.tag_id, byte_offset as i32) };
@@ -251,11 +259,13 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_i64(&self, byte_offset: u32, value: i64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int64(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_u64(&self, byte_offset: u32) -> Result<u64> {
         let val = unsafe { ffi::plc_tag_get_uint64(self.tag_id, byte_offset as i32) };
@@ -264,11 +274,13 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_u64(&self, byte_offset: u32, value: u64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint64(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_f32(&self, byte_offset: u32) -> Result<f32> {
         let val = unsafe { ffi::plc_tag_get_float32(self.tag_id, byte_offset as i32) };
@@ -277,11 +289,13 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_f32(&self, byte_offset: u32, value: f32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float32(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
+
     #[inline(always)]
     pub fn get_f64(&self, byte_offset: u32) -> Result<f64> {
         let val = unsafe { ffi::plc_tag_get_float64(self.tag_id, byte_offset as i32) };
@@ -290,35 +304,177 @@ impl RawTag {
         }
         Ok(val)
     }
+
     #[inline(always)]
     pub fn set_f64(&self, byte_offset: u32, value: f64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float64(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
-    /// Note: it's not efficient
-    pub fn get_bytes(&self, buf: &mut [u8]) -> Result<usize> {
-        let size = self.size()? as usize;
-        let mut i = 0;
-        for item in buf {
-            if i >= size {
-                break;
-            }
-            *item = self.get_u8(i as u32)?;
-            i += 1;
+    /// Getting A String Length
+    #[cfg(feature = "api_string")]
+    #[inline(always)]
+    pub fn get_string_length(&self, byte_offset: u32) -> Result<u32> {
+        let rc = unsafe { ffi::plc_tag_get_string_length(self.tag_id, byte_offset as i32) };
+        if rc >= 0 {
+            Ok(rc as u32)
+        } else {
+            Err(Status::new(rc))
         }
-        Ok(i)
+    }
+
+    /// Getting A String Capacity
+    #[cfg(feature = "api_string")]
+    #[inline(always)]
+    pub fn get_string_capacity(&self, byte_offset: u32) -> Result<u32> {
+        let rc = unsafe { ffi::plc_tag_get_string_capacity(self.tag_id, byte_offset as i32) };
+        if rc >= 0 {
+            Ok(rc as u32)
+        } else {
+            Err(Status::new(rc))
+        }
+    }
+
+    /// Getting the Space Occupied by a String
+    #[cfg(feature = "api_string")]
+    #[inline(always)]
+    pub fn get_string_total_length(&self, byte_offset: u32) -> Result<u32> {
+        let rc = unsafe { ffi::plc_tag_get_string_total_length(self.tag_id, byte_offset as i32) };
+        if rc >= 0 {
+            Ok(rc as u32)
+        } else {
+            Err(Status::new(rc))
+        }
+    }
+
+    /// Reading A String
+    #[cfg(feature = "api_string")]
+    #[inline(always)]
+    pub fn get_string(&self, byte_offset: u32, buf: &mut [u8]) -> Result<()> {
+        let rc = unsafe {
+            ffi::plc_tag_get_string(
+                self.tag_id,
+                byte_offset as i32,
+                buf.as_mut_ptr() as *mut i8,
+                buf.len() as i32,
+            )
+        };
+        Status::new(rc).into_result()
+    }
+
+    /// Write A String
+    /// NOTE: panic if buf terminates with 0 byte
+    #[cfg(feature = "api_string")]
+    #[inline(always)]
+    pub fn set_string(&self, byte_offset: u32, buf: impl Into<Vec<u8>>) -> Result<()> {
+        let buf = CString::new(buf).unwrap();
+        let rc = unsafe { ffi::plc_tag_set_string(self.tag_id, byte_offset as i32, buf.as_ptr()) };
+        Status::new(rc).into_result()
+    }
+
+    /// get raw bytes.
+    /// If buffer length would exceed the end of the data in the tag data buffer, an out of bounds error is returned
+    #[cfg(feature = "api_raw_bytes")]
+    #[inline(always)]
+    pub fn get_bytes_unchecked(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
+        let rc = unsafe {
+            ffi::plc_tag_get_raw_bytes(
+                self.tag_id,
+                byte_offset as i32,
+                buf.as_mut_ptr(),
+                buf.len() as i32,
+            )
+        };
+        Status::new(rc).into_result()?;
+        Ok(buf.len())
+    }
+
+    /// get raw bytes
+    #[cfg(feature = "api_raw_bytes")]
+    #[inline]
+    pub fn get_bytes(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
+        if buf.len() == 0 {
+            return Ok(0);
+        }
+        let size = self.size()? as usize;
+        if byte_offset as usize >= size {
+            return Ok(0);
+        }
+        let slots_len = size - byte_offset as usize;
+        let buf_len = std::cmp::min(slots_len, buf.len());
+        let buf = &mut buf[..buf_len];
+        self.get_bytes_unchecked(byte_offset, buf)
+    }
+
+    /// set raw bytes.
+    /// If buffer length would exceed the end of the data in the tag data buffer, an out of bounds error is returned
+    #[cfg(feature = "api_raw_bytes")]
+    #[inline(always)]
+    pub fn set_bytes_unchecked(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
+        let rc = unsafe {
+            ffi::plc_tag_set_raw_bytes(
+                self.tag_id,
+                byte_offset as i32,
+                buf.as_ptr() as *mut u8,
+                buf.len() as i32,
+            )
+        };
+        Status::new(rc).into_result()?;
+        Ok(buf.len())
+    }
+
+    /// set raw bytes
+    #[cfg(feature = "api_raw_bytes")]
+    #[inline]
+    pub fn set_bytes(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
+        if buf.len() == 0 {
+            return Ok(0);
+        }
+        let size = self.size()? as usize;
+        if byte_offset as usize >= size {
+            return Ok(0);
+        }
+        let slots_len = size - byte_offset as usize;
+        let buf_len = std::cmp::min(slots_len, buf.len());
+        let buf = &buf[..buf_len];
+        self.set_bytes_unchecked(byte_offset, buf)
     }
 
     /// Note: it's not efficient
-    pub fn set_bytes(&self, buf: &[u8]) -> Result<usize> {
-        let size = self.size()?;
-        let len = std::cmp::min(buf.len(), size as usize);
-        let buf = &buf[0..len];
-        for (i, v) in buf.iter().enumerate() {
-            self.set_u8(i as u32, *v)?;
+    #[cfg(not(feature = "api_raw_bytes"))]
+    pub fn get_bytes(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
+        if buf.len() == 0 {
+            return Ok(0);
         }
-        Ok(len)
+        let size = self.size()?;
+        if byte_offset >= size {
+            return Ok(0);
+        }
+        let mut i = byte_offset;
+        for item in buf {
+            *item = self.get_u8(i as u32)?;
+            i += 1;
+        }
+        Ok((i - byte_offset) as usize)
+    }
+
+    /// Note: it's not efficient
+    #[cfg(not(feature = "api_raw_bytes"))]
+    pub fn set_bytes(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
+        if buf.len() == 0 {
+            return Ok(0);
+        }
+        let size = self.size()?;
+        if byte_offset >= size {
+            return Ok(0);
+        }
+        let slots_len = (size - byte_offset) as usize;
+        let buf_len = std::cmp::min(slots_len, buf.len());
+        let buf = &buf[0..buf_len];
+        for (i, v) in buf.iter().enumerate() {
+            self.set_u8(byte_offset + i as u32, *v)?;
+        }
+        Ok(buf.len())
     }
 
     /// note: registering a new callback will override existing one
@@ -431,7 +587,7 @@ mod tests {
         assert_eq!(level, 1);
 
         let mut buf: Vec<u8> = vec![0; size as usize];
-        let size = tag.get_bytes(&mut buf).unwrap();
+        let size = tag.get_bytes(0, &mut buf).unwrap();
         assert_eq!(size, 30);
         let result = &[
             1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -441,13 +597,11 @@ mod tests {
 
         buf[0] = 3;
 
-        tag.set_bytes(&buf).unwrap();
-
-        tag.get_bytes(&mut buf).unwrap();
-        let result = &[
-            3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0,
-        ];
-        assert_eq!(&buf, result);
+        let count = tag.set_bytes(0, &buf[0..2]).unwrap();
+        assert_eq!(count, 2);
+        let count = tag.get_bytes(0, &mut buf[0..3]).unwrap();
+        assert_eq!(count, 3);
+        let result = &[3, 0, 0];
+        assert_eq!(&buf[0..3], result);
     }
 }
