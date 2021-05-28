@@ -135,9 +135,9 @@ impl<T: Initialize + 'static> Pool<T> {
 
     /// remove entry from pool
     #[inline]
-    pub fn remove(&self, tag_path: &str) -> Option<Entry<T>> {
+    pub fn remove(&self, tag_path: impl AsRef<str>) -> Option<Entry<T>> {
         let mut state = self.shared.state.lock();
-        state.remove_entry(tag_path).map(|item| {
+        state.remove_entry(tag_path.as_ref()).map(|item| {
             self.shared.scan_task.remove(item.id());
             Entry {
                 inner: item.inner,
@@ -147,9 +147,9 @@ impl<T: Initialize + 'static> Pool<T> {
     }
 
     #[inline(always)]
-    pub fn contains(&self, tag_path: &str) -> bool {
+    pub fn contains(&self, tag_path: impl AsRef<str>) -> bool {
         let state = self.shared.state.lock();
-        state.tag_by_path(tag_path).is_some()
+        state.tag_by_path(tag_path.as_ref()).is_some()
     }
 
     #[inline(always)]
