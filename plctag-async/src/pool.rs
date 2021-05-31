@@ -1,15 +1,12 @@
 use crate::{cell::OnceCell, private::TagRef, Result};
-
-use plctag::{RawTag, Status};
-
 use parking_lot::Mutex;
+use plctag::{RawTag, Status};
 use std::{
     collections::{BTreeSet, HashMap},
     future::Future,
     ops::Deref,
     sync::Arc,
 };
-
 use tokio::{
     sync::{mpsc, Notify},
     task,

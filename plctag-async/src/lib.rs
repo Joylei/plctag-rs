@@ -92,15 +92,20 @@ pub type PoolEntry = pool::Entry<RawTag>;
 pub type TagRef<'a> = private::TagRef<'a, RawTag>;
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Error {
     TagError(Status),
-    JoinError,
+    JoinError(tokio::task::JoinError),
+    Other(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
+        match self {
+            Error::TagError(_) => None,
+            Error::JoinError(e) => Some(e),
+            Error::Other(e) => Some(e.as_ref()),
+        }
     }
 }
 
@@ -108,7 +113,8 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::TagError(e) => write!(f, "TagError - {}", e),
-            Error::JoinError => write!(f, "Task Join Error"),
+            Error::JoinError(e) => write!(f, "{}", e),
+            Error::Other(e) => write!(f, "{}", e),
         }
     }
 }
@@ -120,8 +126,8 @@ impl From<Status> for Error {
 }
 
 impl From<JoinError> for Error {
-    fn from(_e: JoinError) -> Self {
-        Error::JoinError
+    fn from(e: JoinError) -> Self {
+        Error::JoinError(e)
     }
 }
 
