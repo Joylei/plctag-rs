@@ -11,6 +11,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 fn main() {
+    let is_static = check_static();
+    if is_static {
+        eprintln!("static build");
+    }
     let (lib_path, header_file) = if let Ok(lib_path) = env::var("LIBPLCTAG_PATH") {
         eprintln!("use lib path from env:LIBPLCTAG_PATH");
         let lib_path: PathBuf = lib_path.into();
@@ -18,26 +22,35 @@ fn main() {
         println!("cargo:rerun-if-changed={}", header_file);
         (lib_path, header_file)
     } else {
-        let source: Cow<str> = if let Ok(source) = env::var("LIBPLCTAG_SOURCE") {
-            eprintln!("build from external source");
-            source.into()
-        } else {
-            eprintln!("build from embedded source");
-            "libplctag".into()
-        };
-        let out_dir = cmake::Config::new(source.as_ref()).build();
+        let source: PathBuf = "libplctag".into();
+        let mut config = cmake::Config::new(&source);
+        // do not build examples
+        config.define("BUILD_EXAMPLES", "0");
+        if is_static {
+            config.static_crt(true);
+        }
+        let out_dir = config.build();
         eprintln!("cmake build out dir: {:?}", &out_dir);
-        let header_file = out_dir.join("include").join("libplctag.h");
+        let header_file = source.join("src").join("lib").join("libplctag.h");
+        println!("cargo:rerun-if-changed={}", header_file.display());
         (out_dir, header_file.display().to_string())
     };
-
-    println!("cargo:rustc-link-lib=plctag");
+    println!("cargo:rerun-if-env-changed=LIBPLCTAG_STATIC");
+    println!("cargo:rerun-if-env-changed=LIBPLCTAG_DYNAMIC");
+    if cfg!(target_os = "windows") && is_static {
+        println!("cargo:rustc-link-lib=ws2_32");
+        println!("cargo:rustc-link-lib=static=plctag_static");
+    } else {
+        println!("cargo:rustc-link-lib=plctag");
+    }
     println!("cargo:rustc-link-search={}", lib_path.display());
     println!("cargo:rustc-link-search={}", lib_path.join("lib").display());
     println!(
         "cargo:rustc-link-search={}",
         lib_path.join("Release").display()
     );
+
+    //generate bindings
     let bindings = bindgen::Builder::default()
         .header(header_file)
         .whitelist_var("PLCTAG_.*")
@@ -53,7 +66,9 @@ fn main() {
         .expect("Couldn't write bindings!");
 
     #[cfg(target_os = "windows")]
-    install_lib_files(lib_path, out_path);
+    if !is_static {
+        install_lib_files(lib_path, out_path);
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -99,17 +114,22 @@ fn find_target_profile_dir<'a>(dir: impl AsRef<Path> + 'a) -> Option<PathBuf> {
 /// check if static build in the order of:
 /// PLCTAG_STATIC, PLCTAG_DYNAMIC, rustflags: +crt-static
 fn check_static() -> bool {
-    if let Some(v) = get_env_bool("PLCTAG_STATIC") {
+    if let Some(v) = get_env_bool("LIBPLCTAG_STATIC") {
         return v;
     }
-    if let Some(v) = get_env_bool("PLCTAG_DYNAMIC") {
+    if let Some(v) = get_env_bool("LIBPLCTAG_DYNAMIC") {
         return !v;
     }
     cfg!(target_feature = "crt-static")
 }
 
 fn get_env_bool(key: &str) -> Option<bool> {
-    env::var(key)
-        .ok()
-        .map(|v| v == "1" || v.to_lowercase() == "true")
+    env::var(key).ok().map(|v| {
+        let v = v.to_lowercase();
+        if v == "1" || v == "true" || v == "on" {
+            true
+        } else {
+            false
+        }
+    })
 }
