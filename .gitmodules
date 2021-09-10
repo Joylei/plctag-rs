@@ -1,3 +1,4 @@
 [submodule "libplctag"]
 	path = plctag-sys/libplctag
-	url = https://github.com/Joylei/libplctag
+	url = https://github.com/libplctag/libplctag
+	branch = release
