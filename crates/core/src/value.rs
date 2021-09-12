@@ -1,3 +1,9 @@
+// plctag-rs
+//
+// a rust wrapper of libplctag, with rust style APIs and useful extensions.
+// Copyright: 2020-2021, Joylei <leingliu@gmail.com>
+// License: MIT
+
 use std::borrow::Cow;
 
 use crate::{RawTag, Result};

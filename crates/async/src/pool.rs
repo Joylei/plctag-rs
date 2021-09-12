@@ -1,3 +1,9 @@
+// plctag-rs
+//
+// a rust wrapper of libplctag, with rust style APIs and useful extensions.
+// Copyright: 2020-2021, Joylei <leingliu@gmail.com>
+// License: MIT
+
 use crate::{cell::OnceCell, private::TagRef, Result};
 use parking_lot::Mutex;
 use plctag_core::{RawTag, Status};

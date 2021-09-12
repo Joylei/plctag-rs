@@ -1,3 +1,9 @@
+// plctag-rs
+//
+// a rust wrapper of libplctag, with rust style APIs and useful extensions.
+// Copyright: 2020-2021, Joylei <leingliu@gmail.com>
+// License: MIT
+
 extern crate bindgen;
 extern crate cmake;
 extern crate pkg_config;

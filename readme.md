@@ -3,10 +3,13 @@
 a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
 
 ## crates
-- [plctag-sys](./plctag-sys)  native libplctag binding
-- [plctag](./plctag) a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
-- [plctag-async](./plctag-async) async wrapper based on `plctag-rs` and futures.
-- [plctag-log](./plctag-log) log adapter for `libplctag`
+
+- [plctag](./) reexports everything from below crates.
+- [plctag-sys](./crates/sys) native libplctag binding
+- [plctag-core](./crates/core) a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
+- [plctag-async](./crates/async) tokio based async wrapper.
+- [plctag-log](./crates/log) log adapter for `libplctag`
+- [plctag-derive](./crates/derive) macros for plctag-rs
 
 ## License
 

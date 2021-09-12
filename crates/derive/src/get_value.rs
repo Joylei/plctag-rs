@@ -1,3 +1,9 @@
+// plctag-rs
+//
+// a rust wrapper of libplctag, with rust style APIs and useful extensions.
+// Copyright: 2020-2021, Joylei <leingliu@gmail.com>
+// License: MIT
+
 use crate::shared::{get_crate, get_fields};
 use proc_macro2::TokenStream;
 use proc_quote::quote;

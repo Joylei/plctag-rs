@@ -1,9 +1,16 @@
-// plctag-rs
-//
-// a rust wrapper of libplctag, with rust style APIs and useful extensions.
-// Copyright: 2020-2021, Joylei <leingliu@gmail.com>
-// License: MIT
+# plctag-derive
 
+macros for plctag-rs
+
+## Usage
+
+please use it with [crate@plctag]
+
+With this crate, the macros derive [`plctag::GetValue`] and [`plctag::SetValue`] for you automatically.
+
+### Examples
+
+```rust
 use plctag_core::RawTag;
 use plctag_derive::{GetValue, SetValue};
 
@@ -15,8 +22,8 @@ struct MyUDT {
     b: u32,
 }
 
-#[test]
-fn test_derive() {
+
+fn main() {
     let tag = RawTag::new("make=system&family=library&name=debug&debug=4", 100).unwrap();
     let res = tag.read(100);
     assert!(res.is_ok());
@@ -24,3 +31,9 @@ fn test_derive() {
     assert_eq!(udt.a, 4);
     assert_eq!(udt.b, 0);
 }
+
+```
+
+## License
+
+MIT
