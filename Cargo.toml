@@ -1,7 +1,34 @@
 [workspace]
-members = ["plctag-async", "plctag", "plctag-sys", "plctag-log"]
+members = [".","crates/async", "crates/core", "crates/sys", "crates/log", "crates/derive"]
+
+[package]
+name = "plctag"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "plctag"
+path = "src/lib.rs"
+
+[features]
+default=["full"]
+full = ["derive", "async", "log"]
+log=["plctag-log"]
+derive = ["plctag-derive"]
+async= ["plctag-async"]
+
+[dependencies]
+plctag-core={path = "crates/core"}
+plctag-async={path = "crates/async", optional = true}
+plctag-derive={path = "crates/derive", optional = true}
+plctag-log={path = "crates/log", optional = true}
+
+[dev-dependencies]
+tokio= "1"
+anyhow="1"
+
 [build]
-rustc-wrapper = "sccache"
+#rustc-wrapper = "sccache"
 
 [profile.test]
 debug = 1

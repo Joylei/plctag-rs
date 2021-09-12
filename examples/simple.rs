@@ -1,4 +1,4 @@
-use plctag::{Accessor, RawTag};
+use plctag::RawTag;
 
 fn main() {
     let timeout = 100; //ms
