@@ -1,6 +1,3 @@
-[workspace]
-members = [".","crates/async", "crates/core", "crates/sys", "crates/log", "crates/derive"]
-
 [package]
 name = "plctag"
 version = "0.1.0"
@@ -15,6 +12,9 @@ keywords = ["automation", "control","plc",  "ethernet", "ethernet-ip", "modbus",
 categories = ["api-bindings", "asynchronous", "hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 name = "plctag"
 path = "src/lib.rs"
@@ -26,11 +26,14 @@ log=["plctag-log"]
 derive = ["plctag-derive"]
 async= ["plctag-async"]
 
+[workspace]
+members = [".","crates/async", "crates/core", "crates/sys", "crates/log", "crates/derive"]
+
 [dependencies]
-plctag-core={path = "crates/core"}
-plctag-async={path = "crates/async", optional = true}
-plctag-derive={path = "crates/derive", optional = true}
-plctag-log={path = "crates/log", optional = true}
+plctag-core={path = "crates/core", version = "0.1"}
+plctag-async={path = "crates/async", version = "0.1", optional = true}
+plctag-derive={path = "crates/derive", version = "0.1", optional = true}
+plctag-log={path = "crates/log", version = "0.1", optional = true}
 
 [dev-dependencies]
 tokio= "1"

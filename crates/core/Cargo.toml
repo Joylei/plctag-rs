@@ -13,7 +13,7 @@ categories = ["api-bindings","hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
-plctag-sys = { path = "../sys" }
+plctag-sys = { path = "../sys", version = "0.1" }
 
 log = "0.4"
 parking_lot = { version = "0.11", optional = true }
