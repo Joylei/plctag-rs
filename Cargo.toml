@@ -35,6 +35,20 @@ plctag-log={path = "crates/log", optional = true}
 [dev-dependencies]
 tokio= "1"
 anyhow="1"
+futures="0.3"
+criterion = {version = "0.3", features = [ "async_futures","async_tokio", "cargo_bench_support"]}
+
+[[bench]]
+name = "bench_sync"
+harness = false
+
+[[bench]]
+name = "bench_async"
+harness = false
+
+[[bench]]
+name = "bench_async_batch"
+harness = false
 
 [build]
 #rustc-wrapper = "sccache"

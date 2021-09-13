@@ -7,6 +7,13 @@ a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust
 [![build](https://github.com/joylei/plctag-rs/workflows/Test%20and%20Build/badge.svg?branch=master)](https://github.com/joylei/plctag-rs/actions?query=workflow%3A%22Test+and+Build%22)
 [![license](https://img.shields.io/crates/l/plctag.svg)](https://github.com/joylei/plctag-rs/blob/master/LICENSE)
 
+## Why plctag-rs
+
+- thin wrapper on `libplctag`
+- UDT support with macros
+- with asynchronous & thread-safe based on `tokio`
+- builder to build tag
+
 ## How to use
 
 Add `plctag` to your Cargo.toml
