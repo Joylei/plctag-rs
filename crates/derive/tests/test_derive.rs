@@ -5,13 +5,13 @@
 // License: MIT
 
 use plctag_core::RawTag;
-use plctag_derive::{GetValue, SetValue};
+use plctag_derive::{Decode, Encode};
 
-#[derive(Debug, Default, GetValue, SetValue)]
+#[derive(Debug, Default, Decode, Encode)]
 struct MyUDT {
-    #[offset(0)]
+    #[tag(offset = 0)]
     a: u32,
-    #[offset(4)]
+    #[tag(offset = 4)]
     b: u32,
 }
 

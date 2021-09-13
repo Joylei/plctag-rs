@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use crate::{cell::OnceCell, Result, TagRef};
-use plctag_core::{event::Event, GetValue, RawTag, SetValue, TagId};
+use plctag_core::{event::Event, Decode, Encode, RawTag, TagId};
 
 pub trait AsRaw {
     fn as_raw(&self) -> &RawTag;
@@ -36,12 +36,12 @@ pub trait AsyncTag: AsRaw {
     }
 
     #[inline(always)]
-    fn get_value<T: GetValue + Default>(&self, byte_offset: u32) -> Result<T> {
+    fn get_value<T: Decode + Default>(&self, byte_offset: u32) -> Result<T> {
         Ok(self.as_raw().get_value(byte_offset)?)
     }
 
     #[inline(always)]
-    fn set_value<T: SetValue>(&self, byte_offset: u32, value: T) -> Result<()> {
+    fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
         self.as_raw().set_value(byte_offset, value)?;
         Ok(())
     }
@@ -59,13 +59,13 @@ pub trait AsyncTag: AsRaw {
     }
 
     #[inline(always)]
-    async fn read_value<T: GetValue + Default>(&self, offset: u32) -> Result<T> {
+    async fn read_value<T: Decode>(&self, offset: u32) -> Result<T> {
         self.read().await?;
         Ok(self.as_raw().get_value(offset)?)
     }
 
     #[inline(always)]
-    async fn write_value<T: SetValue + Send>(&self, offset: u32, value: T) -> Result<()> {
+    async fn write_value<T: Encode + Send>(&self, offset: u32, value: T) -> Result<()> {
         self.as_raw().set_value(offset, value)?;
         self.write().await?;
         Ok(())

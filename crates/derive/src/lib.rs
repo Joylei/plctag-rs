@@ -13,19 +13,19 @@ macros for plctag-rs
 
 please use it with [crate@plctag]
 
-With this crate, the macros derive [`plctag::GetValue`] and [`plctag::SetValue`] for you automatically.
+With this crate, the macros derive [`plctag::Decode`] and [`plctag::Encode`] for you automatically.
 
 ### Examples
 
-```rust
+```rust,ignore
 use plctag_core::RawTag;
-use plctag_derive::{GetValue, SetValue};
+use plctag_derive::{Decode, Encode};
 
-#[derive(Debug, Default, GetValue, SetValue)]
+#[derive(Debug, Default, Decode, Encode)]
 struct MyUDT {
-    #[offset(0)]
+    #[tag(offset=0)]
     a: u32,
-    #[offset(4)]
+    #[tag(offset=4)]
     b: u32,
 }
 
@@ -49,8 +49,8 @@ MIT
 
 extern crate proc_macro;
 
-mod get_value;
-mod set_value;
+mod decode_derive;
+mod encode_derive;
 mod shared;
 
 use proc_macro::TokenStream;
@@ -58,18 +58,18 @@ use syn::DeriveInput;
 
 use syn::parse_macro_input;
 
-#[proc_macro_derive(GetValue, attributes(offset))]
+#[proc_macro_derive(Decode, attributes(tag))]
 pub fn get_value_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    get_value::expand_tag_derive(input)
+    decode_derive::expand_tag_derive(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
 
-#[proc_macro_derive(SetValue, attributes(offset))]
+#[proc_macro_derive(Encode, attributes(tag))]
 pub fn set_value_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    set_value::expand_tag_derive(input)
+    encode_derive::expand_tag_derive(input)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }

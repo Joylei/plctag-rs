@@ -8,7 +8,7 @@
 pub use plctag_core::*;
 #[cfg(feature = "derive")]
 #[doc(inline)]
-pub use plctag_derive::{GetValue, SetValue};
+pub use plctag_derive::{Decode, Encode};
 #[cfg(feature = "log")]
 #[doc(inline)]
 pub use plctag_log::*;

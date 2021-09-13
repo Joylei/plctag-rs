@@ -106,7 +106,7 @@ pub fn log_adapt() {
 mod tests {
     use super::*;
     use log::*;
-    use plctag::RawTag;
+    use plctag_core::RawTag;
     use std::sync::{Arc, Mutex};
 
     struct MemLogger {

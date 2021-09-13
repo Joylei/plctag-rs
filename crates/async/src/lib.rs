@@ -26,7 +26,7 @@
 //! ## Examples
 //!
 //!  ```rust,ignore
-//! use plctag_async::{TagEntry, TagFactory, TagOptions, GetValue, SetValue};
+//! use plctag_async::{TagEntry, TagFactory, TagOptions, Decode, Encode};
 //! use tokio::runtime;
 //! use std::fmt;
 //!

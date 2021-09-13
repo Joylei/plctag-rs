@@ -13,12 +13,12 @@ pub fn expand_tag_derive(input: DeriveInput) -> syn::Result<TokenStream> {
     let plctag = get_crate()?;
     let items = get_fields(input.data)?;
 
-    let sets = items
+    let gets = items
         .iter()
-        .map(|(field_name, i)| {
-            let index = Index::from(*i as usize);
+        .map(|(field_name, ty, i)| {
+            let index = Index::from(i.offset as usize);
             Ok(quote! {
-                #plctag::SetValue::set_value(&self.#field_name, tag, offset + #index)?;
+                res.#field_name = #ty::decode(tag, offset + #index)?;
             })
         })
         .collect::<syn::Result<TokenStream>>()?;
@@ -27,10 +27,14 @@ pub fn expand_tag_derive(input: DeriveInput) -> syn::Result<TokenStream> {
 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     Ok(quote! {
-        impl  #impl_generics #plctag::SetValue for #st_name #ty_generics #where_clause{
-            fn set_value(&self, tag: &#plctag::RawTag, offset: u32) -> #plctag::Result<()>{
-                #sets
-                Ok(())
+        impl  #impl_generics #plctag::Decode for #st_name #ty_generics #where_clause
+         {
+            fn decode(tag: &#plctag::RawTag, offset: u32) -> #plctag::Result<Self>{
+                use #plctag::Decode;
+
+                let mut res = Self::default();
+                #gets
+                Ok(res)
             }
         }
     })

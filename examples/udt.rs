@@ -4,14 +4,14 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use plctag::{GetValue, RawTag, Result, SetValue};
+use plctag::{Decode, Encode, RawTag, Result};
 
 // define your UDT
-#[derive(Default, Debug, GetValue, SetValue)]
+#[derive(Default, Debug, Decode, Encode)]
 struct MyUDT {
-    #[offset(0)]
+    #[tag(offset = 0)]
     v1: u16,
-    #[offset(2)]
+    #[tag(offset = 2)]
     v2: u16,
 }
 

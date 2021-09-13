@@ -12,18 +12,17 @@ use paste::paste;
 macro_rules! value_impl {
     ($type: ident) => {
         paste! {
-            impl GetValue for $type {
+            impl Decode for $type {
                 #[inline]
-                fn get_value(&mut self ,tag: &RawTag, offset: u32) -> Result<()> {
+                fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
                     let v = tag.[<get_ $type>](offset)?;
-                    *self = v;
-                    Ok(())
+                    Ok(v)
                 }
 
             }
-            impl SetValue for $type {
+            impl Encode for $type {
                 #[inline]
-                fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
+                fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
                     tag.[<set_ $type>](offset, *self)
                 }
             }
@@ -58,7 +57,7 @@ macro_rules! value_impl {
 ///
 /// # UDT
 /// ```rust, ignore
-/// use plctag::{RawTag, GetValue, SetValue}
+/// use plctag::{RawTag, Decode, Encode}
 ///
 /// // define your UDT
 /// #[derive(Default)]
@@ -66,17 +65,17 @@ macro_rules! value_impl {
 ///     v1:u16,
 ///     v2:u16,
 /// }
-/// impl GetValue for MyUDT {
-///     fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
-///         self.v1.get_value(tag, offset)?;
-///         self.v2.get_value(tag, offset + 2)?;
-///         Ok(())
+/// impl Decode for MyUDT {
+///     fn decode(tag: &RawTag, offset: u32) -> Result<Self>{
+///         let v1 = u16::decode(tag, offset)?;
+///         let v2 = u16::decode(tag, offset + 2)?;
+///         Ok(MyUDT{v1,v2})
 ///     }
 /// }
-/// impl SetValue for MyUDT {
-///     fn set_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
-///         self.v1.set_value(tag, offset)?;
-///         self.v2.set_value(tag, offset+2)?;
+/// impl Encode for MyUDT {
+///     fn encode(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
+///         self.v1.encode(tag, offset)?;
+///         self.v2.encode(tag, offset+2)?;
 ///         Ok(())
 ///     }
 /// }
@@ -103,14 +102,21 @@ macro_rules! value_impl {
 /// ```
 ///
 /// Note:
-/// Do not perform expensive operations when you derives [`GetValue`] or [`SetValue`].
+/// Do not perform expensive operations when you derives [`Decode`] or [`Encode`].
 
-pub trait GetValue {
-    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()>;
+pub trait Decode: Sized {
+    fn decode(tag: &RawTag, offset: u32) -> Result<Self>;
+
+    #[doc(hidden)]
+    fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
+        *place = Decode::decode(tag, offset)?;
+        Ok(())
+    }
 }
 
-pub trait SetValue {
-    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()>;
+/// see `Decode`
+pub trait Encode {
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()>;
 }
 
 value_impl!(bool);
@@ -125,44 +131,42 @@ value_impl!(u64);
 value_impl!(f32);
 value_impl!(f64);
 
-impl<T: GetValue + Default> GetValue for Option<T> {
+impl<T: Decode> Decode for Option<T> {
     #[inline]
-    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
-        let mut v: T = Default::default();
-        v.get_value(tag, offset)?;
-        *self = Some(v);
-        Ok(())
+    fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
+        let v = T::decode(tag, offset)?;
+        Ok(Some(v))
     }
 }
 
-impl<T: SetValue> SetValue for Option<T> {
+impl<T: Encode> Encode for Option<T> {
     #[inline]
-    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
         if let Some(ref v) = self {
-            v.set_value(tag, offset)?;
+            v.encode(tag, offset)?;
         }
         Ok(())
     }
 }
 
-impl<T: SetValue> SetValue for &T {
+impl<T: Encode> Encode for &T {
     #[inline]
-    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
-        T::set_value(self, tag, offset)
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::encode(self, tag, offset)
     }
 }
 
-impl<T: GetValue + Clone> GetValue for Cow<'_, T> {
+impl<T: Decode + Clone> Decode for Cow<'_, T> {
     #[inline]
-    fn get_value(&mut self, tag: &RawTag, offset: u32) -> Result<()> {
-        let v = self.to_mut();
-        T::get_value(v, tag, offset)
+    fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
+        let v = T::decode(tag, offset)?;
+        Ok(Cow::Owned(v))
     }
 }
 
-impl<T: SetValue + Clone> SetValue for Cow<'_, T> {
+impl<T: Encode + Clone> Encode for Cow<'_, T> {
     #[inline]
-    fn set_value(&self, tag: &RawTag, offset: u32) -> Result<()> {
-        T::set_value(self, tag, offset)
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::encode(self, tag, offset)
     }
 }

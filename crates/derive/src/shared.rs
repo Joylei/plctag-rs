@@ -6,7 +6,7 @@
 
 use proc_macro2::Span;
 use proc_macro_crate::{crate_name, FoundCrate};
-use syn::{Attribute, Data, DataStruct, Fields, Ident, Lit, Meta, NestedMeta};
+use syn::{Attribute, Data, DataStruct, Fields, Ident, Lit, Meta, NestedMeta, Type};
 
 pub fn get_crate() -> syn::Result<Ident> {
     let plctag = match crate_name("plctag").or_else(|_| crate_name("plctag-core")) {
@@ -19,7 +19,7 @@ pub fn get_crate() -> syn::Result<Ident> {
     Ok(plctag)
 }
 
-pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, u32)>> {
+pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
     let fields = match data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
@@ -33,21 +33,22 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, u32)>> {
             let attrs: Vec<_> = f
                 .attrs
                 .iter()
-                .filter(|attr| attr.path.is_ident("offset"))
+                .filter(|attr| attr.path.is_ident("tag"))
                 .collect();
             assert!(attrs.len() > 0);
             let offset = match attrs.len() {
                 0 => return Ok(None),
-                1 => get_offset_attr(&attrs[0])?,
+                1 => get_tag_attr(&attrs[0])?,
                 _ => {
                     let mut error =
-                        syn::Error::new_spanned(&attrs[1], "redundant `offset()` attribute");
+                        syn::Error::new_spanned(&attrs[1], "redundant `tag()` attribute");
                     error.combine(syn::Error::new_spanned(&attrs[0], "note: first one here"));
                     return Err(error);
                 }
             };
             let field_name = f.ident.unwrap();
-            Ok(Some((field_name, offset)))
+            let ty = f.ty;
+            Ok(Some((field_name, ty, offset)))
         })
         .filter_map(|res| match res {
             Ok(None) => None,
@@ -57,47 +58,94 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, u32)>> {
         .collect::<syn::Result<Vec<_>>>()?;
 
     if items.len() == 0 {
-        panic!("this derive macro requires at least one offset() attribute on structs")
+        panic!("this derive macro requires at least one tag() attribute on structs")
     }
     Ok(items)
 }
 
-fn get_offset_attr(attr: &Attribute) -> syn::Result<u32> {
+fn get_tag_attr(attr: &Attribute) -> syn::Result<TagInfo> {
     let meta = attr.parse_meta()?;
-    //offset()
+    //tag()
     let meta_list = match meta {
         Meta::List(list) => list,
         _ => {
             return Err(syn::Error::new_spanned(
                 meta,
-                "bad usage, please refer to offset attribute",
+                "bad usage, please refer to tag attribute",
             ))
         }
     };
 
-    //extract nested from offset(nested)
+    //extract nested from tag(nested)
     let nested = match meta_list.nested.len() {
-        1 => &meta_list.nested[0],
+        1 => &meta_list.nested,
         _ => {
             return Err(syn::Error::new_spanned(
                 meta_list.nested,
-                "currently only a single offset attribute is supported",
+                "currently only a single tag attribute is supported",
             ));
         }
     };
 
-    let offset_value = match nested {
-        NestedMeta::Lit(offset_value) => offset_value,
-        _ => {
+    let mut offset = None;
+    let mut size = None;
+    for item in nested {
+        let name_value = match item {
+            NestedMeta::Meta(Meta::NameValue(nv)) => nv,
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    nested,
+                    "expected `offset = \"<value>\"` or `size = \"<value>\"`",
+                ))
+            }
+        };
+
+        if name_value.path.is_ident("offset") {
+            match &name_value.lit {
+                Lit::Int(s) => {
+                    if offset.is_some() {
+                        return Err(syn::Error::new_spanned(
+                            s,
+                            "redundant definition for offset",
+                        ));
+                    }
+                    offset = Some(s.base10_parse()?);
+                }
+                lit => return Err(syn::Error::new_spanned(lit, "expected int literal")),
+            }
+        } else if name_value.path.is_ident("size") {
+            match &name_value.lit {
+                Lit::Int(s) => {
+                    if size.is_some() {
+                        return Err(syn::Error::new_spanned(s, "redundant definition for size"));
+                    }
+                    size = Some(s.base10_parse()?);
+                }
+                lit => return Err(syn::Error::new_spanned(lit, "expected int literal")),
+            }
+        } else {
+            // Could also silently ignore the unexpected attribute by returning `Ok(None)`
             return Err(syn::Error::new_spanned(
-                meta_list.nested,
-                "bad usage, please refer to offset attribute",
+                &name_value.path,
+                "unsupported tag attribute, expected `offset` or `size`",
             ));
         }
-    };
-
-    match &offset_value {
-        Lit::Int(s) => s.base10_parse(),
-        lit => Err(syn::Error::new_spanned(lit, "expected int literal")),
     }
+
+    if offset.is_none() {
+        return Err(syn::Error::new_spanned(
+            &meta_list.path,
+            "tag attribute `offset` is required",
+        ));
+    }
+
+    Ok(TagInfo {
+        offset: offset.unwrap(),
+        size,
+    })
+}
+
+pub struct TagInfo {
+    pub offset: u32,
+    pub size: Option<u32>,
 }

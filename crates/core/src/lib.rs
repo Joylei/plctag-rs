@@ -30,4 +30,4 @@ pub use raw::{RawTag, TagId};
 pub use status::Status;
 
 #[cfg(feature = "value")]
-pub use value::{GetValue, SetValue};
+pub use value::{Decode, Encode};
