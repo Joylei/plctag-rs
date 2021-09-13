@@ -35,7 +35,7 @@ plctag-log= "0.1"
 
 ### Examples
 
-```rust
+```rust,ignore
 use plctag_log::*;
 
 log_adapt(); //register logger
