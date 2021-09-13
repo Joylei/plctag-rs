@@ -8,6 +8,7 @@ use crate::*;
 use tokio::time;
 use tokio::time::Duration;
 
+/// tag entry, represents a tag in PLC controller
 #[derive(Debug)]
 pub struct TagEntry {
     inner: Arc<Inner>,
@@ -28,6 +29,7 @@ impl Clone for TagEntry {
 }
 
 impl TagEntry {
+    /// create instance of [`TagEntry`]
     pub async fn create(options: impl Into<String>) -> Result<Self> {
         let path = options.into();
         let tag = {
@@ -55,6 +57,7 @@ impl TagEntry {
         })
     }
 
+    /// get tag exclusive ref
     pub async fn get(&self) -> Result<TagRef<'_>> {
         let lock = self.inner.lock.lock().await;
         let tag = &self.inner.tag;

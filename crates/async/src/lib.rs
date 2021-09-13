@@ -4,70 +4,10 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-//! # plctag-async
-//!
-//! async wrapper based on [plctag-rs](../plctag).
-//!
-//! ## How to use
-//!
-//! Download latest binary release of [libplctag](https://github.com/libplctag/libplctag/releases) and extract it to somewhere of your computer.
-//!
-//! Set environment variable `LIBPLCTAG_PATH` to the directory of extracted binaries.
-//!
-//! Add `plctag` to your Cargo.toml
-//!
-//! ```toml
-//! [dependencies]
-//! plctag= { git="https://github.com/Joylei/plctag-rs.git", path="plctag-async"}
-//! ```
-//!
-//! You're OK to build your project.
-//!
-//! ## Examples
-//!
-//!  ```rust,ignore
-//! use plctag_async::{TagEntry, TagFactory, TagOptions, Decode, Encode};
-//! use tokio::runtime;
-//! use std::fmt;
-//!
-//! struct MyTagOptions {
-//!     pub key: String,
-//!     pub path: String,
-//! }
-//!
-//! impl TagOptions for MyTagOptions {
-//!     fn key(&self)->&str{
-//!         &self.key
-//!     }
-//! }
-//!
-//! impl fmt::Display for MyTagOptions{
-//!     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//!         write!(f, "{}", self.path)
-//!     }
-//! }
-//!
-//! let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
-//!
-//! let rt = runtime::Runtime::new().unwrap()?;
-//! rt.block_on(async {
-//!     let factory = TagFactory::new();
-//!     let opts = MyTagOptions {
-//!         key: String::from("192.168.1.120;MyTag1"),
-//!         path: path.to_owned(),
-//!     };
-//!     let tag = factory.create(opts).await;
-//!     tag.connect().await;
-//!     let offset = 0;
-//!     let value:u16 = tag.read_value(offset).await.unwrap();
-//!     println!("tag value: {}", value);
-//!
-//!     let value = value + 10;
-//!     tag.write_value(offset).await.unwrap();
-//! });
-//!  ```
+#![doc = include_str!("../README.md")]
+#![warn(missing_docs)]
 
-pub extern crate plctag_core;
+extern crate plctag_core;
 extern crate tokio;
 #[macro_use]
 extern crate log;
@@ -91,17 +31,22 @@ use tokio::task::{self, JoinError};
 /// # Note
 /// - Tag instances will not drop if the [`PoolEntry`] or [`Pool`] is still on the stack
 ///
-/// ---
-/// To remove tag instance from [`Pool`], you can call [`Pool::remove`]
 pub type Pool = pool::Pool<RawTag>;
+/// Tag Instance in the pool
 pub type PoolEntry = pool::Entry<RawTag>;
+/// Tag exclusive reference
 pub type TagRef<'a> = private::TagRef<'a, RawTag>;
+/// result for [`plctag-async`]
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// errors for [`plctag-async`]
 #[derive(Debug)]
 pub enum Error {
+    /// plc tag error
     TagError(Status),
+    /// tokio task join error
     JoinError(tokio::task::JoinError),
+    /// other error
     Other(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 

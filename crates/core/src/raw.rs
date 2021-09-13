@@ -43,6 +43,7 @@ impl RawTag {
         Ok(Self { tag_id })
     }
 
+    /// tag id
     #[inline(always)]
     pub fn id(&self) -> TagId {
         TagId(self.tag_id)
@@ -138,6 +139,7 @@ impl RawTag {
         Ok(value as u32)
     }
 
+    /// get bit value
     #[inline(always)]
     pub fn get_bit(&self, bit_offset: u32) -> Result<bool> {
         let val = unsafe { ffi::plc_tag_get_bit(self.tag_id, bit_offset as i32) };
@@ -148,6 +150,7 @@ impl RawTag {
         Ok(val == 1)
     }
 
+    /// set bit value
     #[inline(always)]
     pub fn set_bit(&self, bit_offset: u32, value: bool) -> Result<()> {
         let rc = unsafe {
@@ -156,17 +159,20 @@ impl RawTag {
         Status::new(rc).into_result()
     }
 
+    /// get bool value
     #[inline(always)]
     pub fn get_bool(&self, byte_offset: u32) -> Result<bool> {
         let value = self.get_u8(byte_offset)?;
         Ok(value > 0)
     }
 
+    /// set bool value
     #[inline(always)]
     pub fn set_bool(&self, byte_offset: u32, value: bool) -> Result<()> {
         self.set_u8(byte_offset, if value { 1 } else { 0 })
     }
 
+    /// get i8 value
     #[inline(always)]
     pub fn get_i8(&self, byte_offset: u32) -> Result<i8> {
         let val = unsafe { ffi::plc_tag_get_int8(self.tag_id, byte_offset as i32) };
@@ -176,12 +182,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// get i8 value
     #[inline(always)]
     pub fn set_i8(&self, byte_offset: u32, value: i8) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int8(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get u8 value
     #[inline(always)]
     pub fn get_u8(&self, byte_offset: u32) -> Result<u8> {
         let val = unsafe { ffi::plc_tag_get_uint8(self.tag_id, byte_offset as i32) };
@@ -191,12 +199,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set u8 value
     #[inline(always)]
     pub fn set_u8(&self, byte_offset: u32, value: u8) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint8(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get i16 value
     #[inline(always)]
     pub fn get_i16(&self, byte_offset: u32) -> Result<i16> {
         let val = unsafe { ffi::plc_tag_get_int16(self.tag_id, byte_offset as i32) };
@@ -206,12 +216,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set i16 value
     #[inline(always)]
     pub fn set_i16(&self, byte_offset: u32, value: i16) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int16(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get u16 value
     #[inline(always)]
     pub fn get_u16(&self, byte_offset: u32) -> Result<u16> {
         let val = unsafe { ffi::plc_tag_get_uint16(self.tag_id, byte_offset as i32) };
@@ -221,12 +233,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set u16 value
     #[inline(always)]
     pub fn set_u16(&self, byte_offset: u32, value: u16) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint16(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get i32 value
     #[inline(always)]
     pub fn get_i32(&self, byte_offset: u32) -> Result<i32> {
         let val = unsafe { ffi::plc_tag_get_int32(self.tag_id, byte_offset as i32) };
@@ -236,12 +250,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set i32 value
     #[inline(always)]
     pub fn set_i32(&self, byte_offset: u32, value: i32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int32(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get u32 value
     #[inline(always)]
     pub fn get_u32(&self, byte_offset: u32) -> Result<u32> {
         let val = unsafe { ffi::plc_tag_get_uint32(self.tag_id, byte_offset as i32) };
@@ -251,12 +267,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set u32 value
     #[inline(always)]
     pub fn set_u32(&self, byte_offset: u32, value: u32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint32(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get i64 value
     #[inline(always)]
     pub fn get_i64(&self, byte_offset: u32) -> Result<i64> {
         let val = unsafe { ffi::plc_tag_get_int64(self.tag_id, byte_offset as i32) };
@@ -266,12 +284,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set i64 value
     #[inline(always)]
     pub fn set_i64(&self, byte_offset: u32, value: i64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_int64(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get u64 value
     #[inline(always)]
     pub fn get_u64(&self, byte_offset: u32) -> Result<u64> {
         let val = unsafe { ffi::plc_tag_get_uint64(self.tag_id, byte_offset as i32) };
@@ -281,12 +301,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set u64 value
     #[inline(always)]
     pub fn set_u64(&self, byte_offset: u32, value: u64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_uint64(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get f32 value
     #[inline(always)]
     pub fn get_f32(&self, byte_offset: u32) -> Result<f32> {
         let val = unsafe { ffi::plc_tag_get_float32(self.tag_id, byte_offset as i32) };
@@ -296,12 +318,14 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set f32 value
     #[inline(always)]
     pub fn set_f32(&self, byte_offset: u32, value: f32) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float32(self.tag_id, byte_offset as i32, value) };
         Status::new(rc).into_result()
     }
 
+    /// get f64 value
     #[inline(always)]
     pub fn get_f64(&self, byte_offset: u32) -> Result<f64> {
         let val = unsafe { ffi::plc_tag_get_float64(self.tag_id, byte_offset as i32) };
@@ -311,6 +335,7 @@ impl RawTag {
         Ok(val)
     }
 
+    /// set f64 value
     #[inline(always)]
     pub fn set_f64(&self, byte_offset: u32, value: f64) -> Result<()> {
         let rc = unsafe { ffi::plc_tag_set_float64(self.tag_id, byte_offset as i32, value) };

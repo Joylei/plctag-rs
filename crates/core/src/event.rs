@@ -104,6 +104,7 @@ impl From<Event> for i32 {
     }
 }
 
+/// event handler
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct Handler<'t> {
     tag_id: &'t i32,

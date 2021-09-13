@@ -23,6 +23,7 @@ pub enum Status {
 }
 
 impl Status {
+    /// create [`Status`] from return code of `libplctag` functions
     #[inline(always)]
     pub fn new(rc: i32) -> Self {
         match rc {
@@ -32,6 +33,7 @@ impl Status {
         }
     }
 
+    /// success or not?
     #[inline(always)]
     pub fn is_ok(&self) -> bool {
         match self {
@@ -40,6 +42,7 @@ impl Status {
         }
     }
 
+    /// has error?
     #[inline(always)]
     pub fn is_err(&self) -> bool {
         match self {
@@ -48,6 +51,7 @@ impl Status {
         }
     }
 
+    /// has pending operations?
     #[inline(always)]
     pub fn is_pending(&self) -> bool {
         match self {
@@ -55,6 +59,8 @@ impl Status {
             _ => false,
         }
     }
+
+    /// is timeout error?
     #[inline(always)]
     pub fn is_timeout(&self) -> bool {
         match self {
@@ -63,6 +69,7 @@ impl Status {
         }
     }
 
+    /// into [`Result`]
     #[inline(always)]
     pub fn into_result(self) -> Result<()> {
         if self.is_ok() {

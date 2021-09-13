@@ -1,16 +1,21 @@
 # plctag-derive
 
-macros for plctag-rs
+macros for `plctag`
+
+[![crates.io](https://img.shields.io/crates/v/plctag-derive.svg)](https://crates.io/crates/plctag-derive)
+[![docs](https://docs.rs/plctag-derive/badge.svg)](https://docs.rs/plctag-derive)
+[![build](https://github.com/joylei/plctag-rs/workflows/Test%20and%20Build/badge.svg?branch=master)](https://github.com/joylei/plctag-rs/actions?query=workflow%3A%22Test+and+Build%22)
+[![license](https://img.shields.io/crates/l/plctag.svg)](https://github.com/joylei/plctag-rs/blob/master/LICENSE)
 
 ## Usage
 
-please use it with [crate@plctag]
+please use it with [plctag](https://crates.io/crates/plctag)
 
-With this crate, the macros derive [`plctag::Decode`] and [`plctag::Encode`] for you automatically.
+With this crate, the macros derive `plctag_core::Decode` and `plctag_core::Encode` for you automatically.
 
 ### Examples
 
-```rust
+```rust,ignore
 use plctag_core::RawTag;
 use plctag_derive::{Decode, Encode};
 

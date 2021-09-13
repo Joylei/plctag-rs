@@ -5,6 +5,15 @@ members = [".","crates/async", "crates/core", "crates/sys", "crates/log", "crate
 name = "plctag"
 version = "0.1.0"
 edition = "2018"
+description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/Joylei/plctag-rs"
+repository = "https://github.com/Joylei/plctag-rs.git"
+documentation = "https://docs.rs/crate/plctag/"
+keywords = ["automation", "control","plc",  "ethernet", "ethernet-ip", "modbus", "hardware"]
+categories = ["api-bindings", "asynchronous", "hardware-support"]
+authors = ["joylei <leingliu@gmail.com>"]
 
 [lib]
 name = "plctag"

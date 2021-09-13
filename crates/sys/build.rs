@@ -58,8 +58,8 @@ fn main() {
     //generate bindings
     let bindings = bindgen::Builder::default()
         .header(header_file)
-        .whitelist_var("PLCTAG_.*")
-        .whitelist_function("plc_tag_.*")
+        .allowlist_var("PLCTAG_.*")
+        .allowlist_function("plc_tag_.*")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .rustfmt_bindings(true)
         .generate()

@@ -105,6 +105,7 @@ macro_rules! value_impl {
 /// Do not perform expensive operations when you derives [`Decode`] or [`Encode`].
 
 pub trait Decode: Sized {
+    /// get value at specified byte offset
     fn decode(tag: &RawTag, offset: u32) -> Result<Self>;
 
     #[doc(hidden)]
@@ -116,6 +117,7 @@ pub trait Decode: Sized {
 
 /// see `Decode`
 pub trait Encode {
+    /// set value at specified byte offset
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()>;
 }
 

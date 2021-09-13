@@ -24,6 +24,7 @@ pub enum DebugLevel {
 }
 
 impl DebugLevel {
+    /// number representation of the value
     #[inline]
     pub fn value(self) -> u8 {
         self.into()

@@ -11,6 +11,7 @@ use core::fmt;
 
 type Result<T> = std::result::Result<T, Error>;
 
+/// tag builder error
 #[derive(Debug)]
 pub struct Error(&'static str);
 

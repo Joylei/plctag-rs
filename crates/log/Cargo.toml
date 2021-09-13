@@ -1,9 +1,17 @@
 [package]
 name = "plctag-log"
 version = "0.1.0"
-authors = ["joylei <leingliu@gmail.com>"]
 edition = "2018"
+description = "log adapter for `libplctag`, one component of `plctag` rust bindings"
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/Joylei/plctag-rs"
+repository = "https://github.com/Joylei/plctag-rs.git"
+documentation = "https://docs.rs/crate/plctag/"
+keywords = ["automation", "control","plc", "ethernet", "ethernet-ip", "modbus", "hardware"]
+categories = ["api-bindings"]
+authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
-log = "*"
 plctag-core = { path = "../core" }
+log = "0.4"

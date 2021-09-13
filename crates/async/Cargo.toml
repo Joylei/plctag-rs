@@ -1,23 +1,31 @@
 [package]
 name = "plctag-async"
 version = "0.1.0"
-authors = ["joylei <leingliu@gmail.com>"]
 edition = "2018"
+description = "tokio based async wrapper for libplctag"
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/Joylei/plctag-rs"
+repository = "https://github.com/Joylei/plctag-rs.git"
+documentation = "https://docs.rs/crate/plctag/"
+keywords = ["automation", "control","plc", "ethernet", "ethernet-ip", "modbus", "hardware"]
+categories = ["api-bindings", "asynchronous", "hardware-support"]
+authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
 plctag-core = { path = "../core" }
-parking_lot = "*"
+parking_lot = "0.11"
 tokio = { version = "1", default-features = false, features = [
     "rt-multi-thread",
     "time",
     "sync",
     "macros",
 ] }
-log = "*"
-async-trait = "*"
+log = "0.4"
+async-trait = "0.1"
 
 [dev-dependencies]
-anyhow = "*"
+anyhow = "1"
 tokio = { version = "1", default-features = false, features = [
     "rt-multi-thread",
     "time",

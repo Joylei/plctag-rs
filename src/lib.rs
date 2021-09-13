@@ -4,6 +4,8 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
+#![doc = include_str!("../README.md")]
+
 #[doc(inline)]
 pub use plctag_core::*;
 #[cfg(feature = "derive")]
@@ -11,7 +13,7 @@ pub use plctag_core::*;
 pub use plctag_derive::{Decode, Encode};
 #[cfg(feature = "log")]
 #[doc(inline)]
-pub use plctag_log::*;
+pub use plctag_log as log;
 
 #[cfg(feature = "async")]
 #[doc(inline)]
