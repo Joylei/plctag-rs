@@ -21,10 +21,6 @@ Download latest binary release of [libplctag](https://github.com/libplctag/libpl
 
 Set environment variable `LIBPLCTAG_PATH` to the directory of extracted binaries.
 
-## Build from external source
+## Build from git submodules
 
-Set environment variable `LIBPLCTAG_SOURCE` to the directory of source code of [libplctag](https://github.com/libplctag/libplctag/).
-
-## Build from embedded source
-
-If environment variable `LIBPLCTAG_PATH` is not present, will build from embedded source of [libplctag](https://github.com/libplctag/libplctag/).
+If environment variable `LIBPLCTAG_PATH` does not present, will build from git submodules [libplctag](https://github.com/libplctag/libplctag/).

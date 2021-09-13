@@ -18,7 +18,7 @@ plctag-async= "0.1"
 
 ## Examples
 
-```rust,ignore
+```rust
 use plctag_async::{AsyncTag, Error, TagEntry};
 use tokio::runtime;
 
