@@ -12,8 +12,7 @@ native libplctag binding
 You can build from source or use pre-built binaries. It depends on how you set ENV variables.
 
 - Use pre-built binaries
-- Build from external source
-- Build from embedded source
+- Build from git submodules
 
 ## Use pre-built binaries
 
