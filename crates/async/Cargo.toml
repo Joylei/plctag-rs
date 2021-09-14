@@ -8,7 +8,7 @@ license = "MIT"
 homepage = "https://github.com/Joylei/plctag-rs"
 repository = "https://github.com/Joylei/plctag-rs.git"
 documentation = "https://docs.rs/crate/plctag/"
-keywords = ["automation", "control","plc", "ethernet", "ethernet-ip", "modbus", "hardware"]
+keywords = ["automation", "plc", "ethernet","modbus", "hardware"]
 categories = ["api-bindings", "asynchronous", "hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
