@@ -15,6 +15,8 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
+use fs_extra::dir::CopyOptions;
+
 fn main() {
     let is_static = check_static();
     if is_static {
@@ -27,8 +29,23 @@ fn main() {
         println!("cargo:rerun-if-changed={}", header_file);
         (lib_path, header_file)
     } else {
-        let source: PathBuf = "libplctag".into();
-        let mut config = cmake::Config::new(&source);
+        let source_dir = {
+            let source_dir: PathBuf = "libplctag".into();
+
+            // fix publish issue: Build scripts should not modify anything outside of OUT_DIR
+            let dst_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+            fs_extra::dir::copy(
+                source_dir,
+                &dst_dir,
+                &CopyOptions {
+                    overwrite: true,
+                    ..CopyOptions::new()
+                },
+            )
+            .expect("failed to copy libplctag to OUT_DIR");
+            dst_dir.join("libplctag")
+        };
+        let mut config = cmake::Config::new(&source_dir);
         // do not build examples
         config.define("BUILD_EXAMPLES", "0");
         if is_static {
@@ -36,7 +53,7 @@ fn main() {
         }
         let out_dir = config.build();
         eprintln!("cmake build out dir: {:?}", &out_dir);
-        let header_file = source.join("src").join("lib").join("libplctag.h");
+        let header_file = source_dir.join("src").join("lib").join("libplctag.h");
         println!("cargo:rerun-if-changed={}", header_file.display());
         (out_dir, header_file.display().to_string())
     };

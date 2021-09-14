@@ -18,3 +18,4 @@ authors = ["joylei <leingliu@gmail.com>"]
 bindgen = "0.59"
 cmake = "0.1"
 pkg-config = "0.3"
+fs_extra = "1.2.0"
