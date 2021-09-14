@@ -17,29 +17,10 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [stable]
     steps:
-      - name: Cache LLVM and Clang
-        id: cache-llvm
-        uses: actions/cache@v2
-        if: matrix.os == 'windows-latest'
-        with:
-          path: |
-            C:/Program Files/LLVM
-            ./llvm
-          key: llvm-3.5
-      - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v1
-        if: matrix.os == 'windows-latest'
-        with:
-          version: "3.5"
-          cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-      - name: Set clang path
-        shell: cmd
-        run: |
-          Set PATH=${{ env.LLVM_PATH }}/bin;%PATH%
-          Set LIBCLANG_PATH=${{ env.LLVM_PATH }}/bin
-          where clang
-        if: matrix.os == 'windows-latest'
       - uses: actions/checkout@v2
+      - name: Install llvm and clang
+        run: choco install llvm
+        if: matrix.os == 'windows-latest'
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
