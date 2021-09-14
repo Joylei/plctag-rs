@@ -11,7 +11,7 @@ a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust
 
 [![crates.io](https://img.shields.io/crates/v/plctag.svg)](https://crates.io/crates/plctag)
 [![docs](https://docs.rs/plctag/badge.svg)](https://docs.rs/plctag)
-[![build](https://github.com/joylei/plctag-rs/workflows/Test%20and%20Build/badge.svg?branch=master)](https://github.com/joylei/plctag-rs/actions?query=workflow%3A%22Test+and+Build%22)
+[![build](https://github.com/joylei/plctag-rs/workflows/build/badge.svg?branch=master)](https://github.com/joylei/plctag-rs/actions?query=workflow%3A%22build%22)
 [![license](https://img.shields.io/crates/l/plctag.svg)](https://github.com/joylei/plctag-rs/blob/master/LICENSE)
 
 ## How to use
