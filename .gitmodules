@@ -1,4 +1,0 @@
-[submodule "libplctag"]
-	path = plctag-sys/libplctag
-	url = https://github.com/libplctag/libplctag
-	branch = release
