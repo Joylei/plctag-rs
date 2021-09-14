@@ -18,6 +18,10 @@ jobs:
         rust: [stable, beta]
     steps:
       - uses: actions/checkout@v2
+      - name: Fix clang path
+        shell: cmd
+        run: set PATH=C:\msys64\mingw64\bin;%PATH%
+        if: matrix.os == 'windows-latest'
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
