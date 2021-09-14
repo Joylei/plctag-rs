@@ -20,7 +20,7 @@ jobs:
       - name: Cache LLVM and Clang
         id: cache-llvm
         uses: actions/cache@v2
-        if: matrix.config.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         with:
           path: |
             C:/Program Files/LLVM
@@ -28,7 +28,7 @@ jobs:
           key: llvm-3.5
       - name: Install LLVM and Clang
         uses: KyleMayes/install-llvm-action@v1
-        if: matrix.config.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         with:
           version: "3.5"
           cached: ${{ steps.cache-llvm.outputs.cache-hit }}
