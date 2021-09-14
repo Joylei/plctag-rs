@@ -1,3 +1,4 @@
 [submodule "crates/sys/libplctag"]
 	path = crates/sys/libplctag
 	url = https://github.com/libplctag/libplctag
+	branch = release
