@@ -36,7 +36,7 @@ macro_rules! value_impl {
 /// # Examples
 /// with this trait, you can simply get or set tag value
 /// ```rust,ignore
-/// use plctag::{RawTag, TagValue};
+/// use plctag::{RawTag, Encode, Decode};
 /// let timeout = 100;//ms
 /// let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 /// let tag = RawTag::new(path, timeout).unwrap();
