@@ -1,6 +1,6 @@
 [package]
 name = "plctag"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2018"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
 readme = "README.md"
@@ -30,10 +30,10 @@ async= ["plctag-async"]
 members = [".","crates/async", "crates/core", "crates/sys", "crates/log", "crates/derive"]
 
 [dependencies]
-plctag-core={path = "crates/core", version = "0.1"}
-plctag-async={path = "crates/async", version = "0.1", optional = true}
-plctag-derive={path = "crates/derive", version = "0.1", optional = true}
-plctag-log={path = "crates/log", version = "0.1", optional = true}
+plctag-core={path = "crates/core", version = "0.2"}
+plctag-async={path = "crates/async", version = "0.2", optional = true}
+plctag-derive={path = "crates/derive", version = "0.2", optional = true}
+plctag-log={path = "crates/log", version = "0.2", optional = true}
 
 [dev-dependencies]
 tokio= "1"

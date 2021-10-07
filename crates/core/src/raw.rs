@@ -139,6 +139,16 @@ impl RawTag {
         Ok(value as u32)
     }
 
+    /// set tag size in bytes, returns old size
+    #[inline(always)]
+    pub fn set_size(&self, size: u32) -> Result<u32> {
+        let value = unsafe { ffi::plc_tag_set_size(self.tag_id, size as i32) };
+        if value < 0 {
+            return Err(Status::from(value).into());
+        }
+        Ok(value as u32)
+    }
+
     /// get bit value
     #[inline(always)]
     pub fn get_bit(&self, bit_offset: u32) -> Result<bool> {

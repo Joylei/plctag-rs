@@ -30,6 +30,12 @@ pub trait AsyncTag: AsRaw {
         Ok(self.as_raw().size()?)
     }
 
+    /// set tag size
+    #[inline(always)]
+    fn set_size(&self, size: u32) -> Result<u32> {
+        Ok(self.as_raw().set_size(size)?)
+    }
+
     /// element count of this tag
     #[inline(always)]
     fn elem_count(&self) -> Result<i32> {
