@@ -18,6 +18,8 @@ jobs:
         rust: [stable]
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: "recursive"
       - name: Install llvm and clang
         run: choco install llvm
         if: matrix.os == 'windows-latest'
