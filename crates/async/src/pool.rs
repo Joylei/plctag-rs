@@ -842,7 +842,7 @@ mod test {
             assert!(res.is_err());
             drop(res);
             drop(entry);
-            time::sleep(Duration::from_millis(150)).await;
+            time::sleep(Duration::from_millis(200)).await;
             assert_eq!(pool.len(), 0);
         });
         Ok(())
