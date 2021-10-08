@@ -180,6 +180,14 @@ Because mutithread will cause troubles, you need to run tests with:
 cargo test -- --test-threads=1
 ```
 
+## Bench
+
+```shell
+cargo bench
+```
+
+The plots and saved data are stored under target/criterion/$BENCHMARK_NAME/
+
 ## License
 
 MIT
