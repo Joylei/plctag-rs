@@ -27,7 +27,7 @@ plctag-async= "0.1"
 
 - without pool
 
-```rust
+```rust,ignore
 use plctag_async::{AsyncTag, Error, TagEntry};
 use tokio::runtime;
 
@@ -48,7 +48,7 @@ rt.block_on(async {
 
 - with pool
 
-```rust
+```rust,ignore
 use plctag_async::{AsyncTag, Error, Pool, PoolEntry};
 use tokio::runtime;
 
