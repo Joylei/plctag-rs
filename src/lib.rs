@@ -177,7 +177,7 @@ Please refer to `How to use` to setup build environment.
 Because mutithread will cause troubles, you need to run tests with:
 
 ```shell
-cargo test -- --test-threads=1
+cargo test --all -- --test-threads=1
 ```
 
 ## License
