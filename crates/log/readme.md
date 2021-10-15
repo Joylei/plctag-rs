@@ -19,7 +19,7 @@ Add `plctag-log` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag-log= "0.1"
+plctag-log= "0.2"
 ```
 
 ### Note
