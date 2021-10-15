@@ -1,6 +1,6 @@
 [package]
 name = "plctag"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
 readme = "README.md"
