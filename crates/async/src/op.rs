@@ -50,7 +50,7 @@ pub trait AsyncTag: AsRaw {
 
     /// get value from mem, you should call read() before this operation
     #[inline(always)]
-    fn get_value<T: Decode + Default>(&self, byte_offset: u32) -> Result<T> {
+    fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
         Ok(self.as_raw().get_value(byte_offset)?)
     }
 
