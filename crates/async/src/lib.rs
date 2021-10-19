@@ -95,7 +95,6 @@ extern crate log;
 #[macro_use]
 extern crate async_trait;
 
-mod cell;
 mod entry;
 mod op;
 mod pool;

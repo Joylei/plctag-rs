@@ -4,10 +4,12 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use std::sync::Arc;
+mod park;
+mod rw;
 
-use crate::{cell::OnceCell, Result, TagRef};
-use plctag_core::{event::Event, Decode, Encode, RawTag, TagId};
+use self::{park::Interest, rw::Operation};
+use crate::{Result, TagRef};
+use plctag_core::{Decode, Encode, RawTag};
 
 /// get ref of [`RawTag`]
 pub trait AsRaw {
@@ -20,7 +22,7 @@ pub trait AsRaw {
 pub trait AsyncTag: AsRaw {
     /// get tag id
     #[inline(always)]
-    fn id(&self) -> TagId {
+    fn id(&self) -> i32 {
         self.as_raw().id()
     }
 
@@ -64,15 +66,15 @@ pub trait AsyncTag: AsRaw {
     /// perform read from PLC Controller
     #[inline(always)]
     async fn read(&self) -> Result<()> {
-        let mut op = Operation::new(self.as_raw());
-        op.run(true).await
+        let mut task = Operation::new(self.as_raw(), Interest::Read);
+        task.run().await
     }
 
     /// perform write to PLC Controller
     #[inline(always)]
     async fn write(&self) -> Result<()> {
-        let mut op = Operation::new(self.as_raw());
-        op.run(false).await
+        let mut task = Operation::new(self.as_raw(), Interest::Write);
+        task.run().await
     }
 
     /// perform read & returns the value
@@ -97,61 +99,3 @@ impl AsRaw for TagRef<'_> {
     }
 }
 impl AsyncTag for TagRef<'_> {}
-
-/// ensures that pending operation get aborted if not successful
-struct Operation<'a> {
-    /// should abort or not
-    pending: bool,
-    tag: &'a RawTag,
-}
-
-impl<'a> Operation<'a> {
-    #[inline(always)]
-    fn new(tag: &'a RawTag) -> Self {
-        Self {
-            pending: false,
-            tag,
-        }
-    }
-
-    async fn run(&mut self, rw: bool) -> Result<()> {
-        let cell = Arc::new(OnceCell::new());
-        let handler = {
-            let cell = cell.clone();
-            self.tag.listen(move |_, evt, status| {
-                //TODO: check status
-                match evt {
-                    Event::ReadCompleted if rw => (),
-                    Event::WriteCompleted if !rw => (),
-                    Event::Aborted | Event::Destroyed => (),
-                    _ => return,
-                }
-                let _ = cell.set(status);
-            })
-        };
-        self.pending = true;
-        let mut status = if rw {
-            self.tag.read(0)
-        } else {
-            self.tag.write(0)
-        };
-        if status.is_pending() {
-            status = *cell.wait().await;
-            debug_assert!(!status.is_pending());
-        }
-        self.pending = false;
-        drop(handler); //remove listener here
-        status.into_result()?;
-        Ok(())
-    }
-}
-
-/// drop ensures that pending operation get aborted if not successful
-impl Drop for Operation<'_> {
-    #[inline(always)]
-    fn drop(&mut self) {
-        if self.pending {
-            let _ = self.tag.abort();
-        }
-    }
-}

@@ -74,12 +74,6 @@ MIT
 */
 #![warn(missing_docs)]
 
-#[cfg(feature = "event")]
-extern crate dyn_clone;
-#[cfg(feature = "event")]
-extern crate once_cell;
-#[cfg(feature = "event")]
-extern crate parking_lot;
 extern crate plctag_sys;
 
 /// reexports ffi Apis
@@ -89,9 +83,9 @@ pub mod ffi {
 
 pub mod builder;
 mod debug;
-#[cfg(feature = "event")]
+//#[cfg(feature = "event")]
 /// event handling
-pub mod event;
+//pub mod event;
 mod raw;
 mod status;
 #[cfg(feature = "value")]

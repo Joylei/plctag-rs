@@ -4,7 +4,7 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use crate::{cell::OnceCell, private::TagRef, Result};
+use crate::{private::TagRef, Result};
 use parking_lot::Mutex;
 use plctag_core::{RawTag, Status};
 use std::{
@@ -14,7 +14,7 @@ use std::{
     sync::Arc,
 };
 use tokio::{
-    sync::{mpsc, Notify},
+    sync::{mpsc, Notify, OnceCell},
     task,
     time::{self, Duration, Instant},
 };
@@ -230,6 +230,28 @@ struct EntryState<T> {
     path: String,
     tag: T,
     err_status: OnceCell<Status>,
+    notify: Notify,
+}
+
+impl<T> EntryState<T> {
+    async fn wait_ready(&self) -> Result<()> {
+        loop {
+            match self.err_status.get() {
+                None => {
+                    self.notify.notified().await;
+                }
+                Some(status) => {
+                    (*status).into_result()?;
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    fn fire(&self, status: Status) {
+        let _ = self.err_status.set(status);
+        self.notify.notify_waiters();
+    }
 }
 
 unsafe impl<T> Send for EntryState<T> {}
@@ -282,9 +304,7 @@ struct EntryInner<T> {
 impl<T: Initialize> EntryInner<T> {
     #[inline(always)]
     async fn connect(&self) -> Result<()> {
-        let status = *self.state.err_status.wait().await;
-        status.into_result()?;
-        Ok(())
+        self.state.wait_ready().await
     }
 
     #[inline(always)]
@@ -333,7 +353,8 @@ impl<T: Initialize> EntryHolder<T> {
                     id,
                     path,
                     tag,
-                    err_status: OnceCell::new_notify_all(),
+                    err_status: OnceCell::new(),
+                    notify: Notify::new(),
                 }),
                 lock: Arc::new(tokio::sync::Mutex::new(())),
             },
@@ -625,7 +646,7 @@ async fn scan_tags_task<T: Initialize + 'static>(
                         let status = entry.tag.status();
                         if !status.is_pending() {
                             debug!("scan_tags_task: entry[{}] initialized", id);
-                            let _ = entry.err_status.set(status);
+                            entry.fire(status);
                             state.remove(&id);
 
                             // in error state, set expired so it will be removed later

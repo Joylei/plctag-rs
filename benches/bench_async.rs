@@ -18,7 +18,6 @@ fn bench_read(c: &mut Criterion) {
                 for _i in 0..10 {
                     let tag_ref = tag.get().await.unwrap();
                     let _value: i32 = tag_ref.read_value(0).await.unwrap();
-                    //value
                 }
             },
             BatchSize::PerIteration,
