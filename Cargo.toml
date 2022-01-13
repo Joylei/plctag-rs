@@ -1,14 +1,14 @@
 [package]
 name = "plctag"
 version = "0.2.1"
-edition = "2018"
+edition = "2021"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
 readme = "README.md"
 license = "MIT"
 homepage = "https://github.com/Joylei/plctag-rs"
 repository = "https://github.com/Joylei/plctag-rs.git"
 documentation = "https://docs.rs/crate/plctag/"
-keywords = ["automation", "plc", "ethernet","modbus", "hardware"]
+keywords = ["automation", "plc", "ethernet", "modbus", "hardware"]
 categories = ["api-bindings", "asynchronous", "hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
@@ -20,26 +20,37 @@ name = "plctag"
 path = "src/lib.rs"
 
 [features]
-default=["full"]
+default = ["full"]
 full = ["derive", "async", "log"]
-log=["plctag-log"]
+log = ["plctag-log"]
 derive = ["plctag-derive"]
-async= ["plctag-async"]
+async = ["plctag-async"]
 
 [workspace]
-members = [".","crates/async", "crates/core", "crates/sys", "crates/log", "crates/derive"]
+members = [
+    ".",
+    "crates/async",
+    "crates/core",
+    "crates/sys",
+    "crates/log",
+    "crates/derive",
+]
 
 [dependencies]
-plctag-core={path = "crates/core", version = "0.2"}
-plctag-async={path = "crates/async", version = "0.2", optional = true}
-plctag-derive={path = "crates/derive", version = "0.2", optional = true}
-plctag-log={path = "crates/log", version = "0.2", optional = true}
+plctag-core = { path = "crates/core", version = "0.2" }
+plctag-async = { path = "crates/async", version = "0.2", optional = true }
+plctag-derive = { path = "crates/derive", version = "0.2", optional = true }
+plctag-log = { path = "crates/log", version = "0.2", optional = true }
 
 [dev-dependencies]
-tokio= "1"
-anyhow="1"
-futures="0.3"
-criterion = {version = "0.3", features = [ "async_futures","async_tokio", "cargo_bench_support"]}
+tokio = "1"
+anyhow = "1"
+futures = "0.3"
+criterion = { version = "0.3", features = [
+    "async_futures",
+    "async_tokio",
+    "cargo_bench_support",
+] }
 
 [[bench]]
 name = "bench_sync"
