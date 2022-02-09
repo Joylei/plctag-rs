@@ -51,6 +51,7 @@ criterion = { version = "0.3", features = [
     "async_tokio",
     "cargo_bench_support",
 ] }
+env_logger = "0.9"
 
 [[bench]]
 name = "bench_sync"
