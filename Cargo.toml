@@ -72,5 +72,14 @@ harness = false
 [build]
 #rustc-wrapper = "sccache"
 
+[profile.release]
+lto = 'thin'
+panic = 'abort'
+codegen-units = 1
+
+[profile.bench]
+lto = 'thin'
+codegen-units = 1
+
 [profile.test]
 debug = 1
