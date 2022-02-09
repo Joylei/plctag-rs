@@ -353,7 +353,6 @@ impl RawTag {
     }
 
     /// Getting A String Length
-    #[cfg(feature = "api_string")]
     #[inline(always)]
     pub fn get_string_length(&self, byte_offset: u32) -> Result<u32> {
         let rc = unsafe { ffi::plc_tag_get_string_length(self.tag_id, byte_offset as i32) };
@@ -365,7 +364,6 @@ impl RawTag {
     }
 
     /// Getting A String Capacity
-    #[cfg(feature = "api_string")]
     #[inline(always)]
     pub fn get_string_capacity(&self, byte_offset: u32) -> Result<u32> {
         let rc = unsafe { ffi::plc_tag_get_string_capacity(self.tag_id, byte_offset as i32) };
@@ -377,7 +375,6 @@ impl RawTag {
     }
 
     /// Getting the Space Occupied by a String
-    #[cfg(feature = "api_string")]
     #[inline(always)]
     pub fn get_string_total_length(&self, byte_offset: u32) -> Result<u32> {
         let rc = unsafe { ffi::plc_tag_get_string_total_length(self.tag_id, byte_offset as i32) };
@@ -389,7 +386,6 @@ impl RawTag {
     }
 
     /// Reading A String
-    #[cfg(feature = "api_string")]
     #[inline(always)]
     pub fn get_string(&self, byte_offset: u32, buf: &mut [u8]) -> Result<()> {
         let rc = unsafe {
@@ -405,7 +401,6 @@ impl RawTag {
 
     /// Write A String
     /// NOTE: panic if buf terminates with 0 byte
-    #[cfg(feature = "api_string")]
     #[inline(always)]
     pub fn set_string(&self, byte_offset: u32, buf: impl Into<Vec<u8>>) -> Result<()> {
         let buf = CString::new(buf).unwrap();
@@ -415,7 +410,6 @@ impl RawTag {
 
     /// get raw bytes.
     /// If buffer length would exceed the end of the data in the tag data buffer, an out of bounds error is returned
-    #[cfg(feature = "api_raw_bytes")]
     #[inline(always)]
     pub fn get_bytes_unchecked(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
         let rc = unsafe {
@@ -431,7 +425,6 @@ impl RawTag {
     }
 
     /// get raw bytes
-    #[cfg(feature = "api_raw_bytes")]
     #[inline]
     pub fn get_bytes(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
         if buf.len() == 0 {
@@ -449,7 +442,6 @@ impl RawTag {
 
     /// set raw bytes.
     /// If buffer length would exceed the end of the data in the tag data buffer, an out of bounds error is returned
-    #[cfg(feature = "api_raw_bytes")]
     #[inline(always)]
     pub fn set_bytes_unchecked(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
         let rc = unsafe {
@@ -465,7 +457,6 @@ impl RawTag {
     }
 
     /// set raw bytes
-    #[cfg(feature = "api_raw_bytes")]
     #[inline]
     pub fn set_bytes(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
         if buf.len() == 0 {
@@ -479,43 +470,6 @@ impl RawTag {
         let buf_len = std::cmp::min(slots_len, buf.len());
         let buf = &buf[..buf_len];
         self.set_bytes_unchecked(byte_offset, buf)
-    }
-
-    /// Note: it's not efficient
-    #[cfg(not(feature = "api_raw_bytes"))]
-    pub fn get_bytes(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
-        if buf.len() == 0 {
-            return Ok(0);
-        }
-        let size = self.size()?;
-        if byte_offset >= size {
-            return Ok(0);
-        }
-        let mut i = byte_offset;
-        for item in buf {
-            *item = self.get_u8(i as u32)?;
-            i += 1;
-        }
-        Ok((i - byte_offset) as usize)
-    }
-
-    /// Note: it's not efficient
-    #[cfg(not(feature = "api_raw_bytes"))]
-    pub fn set_bytes(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
-        if buf.len() == 0 {
-            return Ok(0);
-        }
-        let size = self.size()?;
-        if byte_offset >= size {
-            return Ok(0);
-        }
-        let slots_len = (size - byte_offset) as usize;
-        let buf_len = std::cmp::min(slots_len, buf.len());
-        let buf = &buf[0..buf_len];
-        for (i, v) in buf.iter().enumerate() {
-            self.set_u8(byte_offset + i as u32, *v)?;
-        }
-        Ok(buf.len())
     }
 
     /// note: registering a new callback will override existing one

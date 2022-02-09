@@ -22,12 +22,6 @@ once_cell = { version = "1", optional = true }
 dyn-clone = { version = "1", optional = true }
 
 [features]
-default = ["value", "event", "api_string", "api_raw_bytes", "api_tag_set_size"]
+default = ["value", "event"]
 value = ["paste"]
 event = ["parking_lot", "once_cell", "dyn-clone"]
-# libplctag version 2.2+: string api
-api_string = []
-# libplctag version 2.3+: raw bytes api
-api_raw_bytes = []
-# libplctag version 2.4
-api_tag_set_size = []
