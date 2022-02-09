@@ -114,7 +114,7 @@ pub struct Handler<'t> {
 impl Drop for Handler<'_> {
     #[inline]
     fn drop(&mut self) {
-        EVENTS.remove_handler(&self);
+        EVENTS.remove_handler(self);
     }
 }
 
@@ -152,7 +152,7 @@ struct State {
 impl State {
     #[inline(always)]
     fn check_handler(&self, h: &Handler) -> bool {
-        if let Some(handlers) = self.handlers.get(&h.tag_id) {
+        if let Some(handlers) = self.handlers.get(h.tag_id) {
             handlers.contains_key(&h.handler_id)
         } else {
             false
@@ -162,16 +162,16 @@ impl State {
     fn remove_handler(&mut self, h: &Handler) {
         let mut tag_removed = false;
         {
-            if let Some(handlers) = self.handlers.get_mut(&h.tag_id) {
+            if let Some(handlers) = self.handlers.get_mut(h.tag_id) {
                 handlers.remove(&h.handler_id);
-                if handlers.len() == 0 {
+                if handlers.is_empty() {
                     tag_removed = true;
                 }
             }
         }
         if tag_removed {
-            self.handlers.remove(&h.tag_id);
-            let rc = unsafe { ffi::plc_tag_unregister_callback(h.tag_id.clone()) };
+            self.handlers.remove(h.tag_id);
+            let rc = unsafe { ffi::plc_tag_unregister_callback(*(h.tag_id)) };
             debug_assert_eq!(rc, ffi::PLCTAG_STATUS_OK as i32);
         }
     }
@@ -195,7 +195,7 @@ impl EventRegistry {
             return;
         }
         let mut writer = RwLockUpgradableReadGuard::upgrade(reader);
-        writer.remove_handler(&h);
+        writer.remove_handler(h);
     }
 
     fn add_handler<'t, F>(&self, tag_id: &'t i32, f: F) -> Handler<'t>
@@ -210,11 +210,11 @@ impl EventRegistry {
             let h: Box<dyn Listener + 'static> = Box::new(ListenerImpl::new(f));
             match writer.handlers.entry(*tag_id) {
                 Entry::Occupied(mut e) => {
-                    e.get_mut().insert(handler_id.clone(), h);
+                    e.get_mut().insert(handler_id, h);
                 }
                 Entry::Vacant(e) => {
                     let mut handlers = HashMap::new();
-                    handlers.insert(handler_id.clone(), h);
+                    handlers.insert(handler_id, h);
                     e.insert(handlers);
                     let rc = unsafe { ffi::plc_tag_register_callback(*tag_id, Some(on_event)) };
                     debug_assert_eq!(rc, ffi::PLCTAG_STATUS_OK as i32);
@@ -258,7 +258,7 @@ impl EventRegistry {
     }
 }
 
-static EVENTS: Lazy<EventRegistry> = Lazy::new(|| EventRegistry::new());
+static EVENTS: Lazy<EventRegistry> = Lazy::new(EventRegistry::new);
 
 unsafe extern "C" fn on_event(tag_id: i32, event: i32, status: i32) {
     EVENTS.dispatch(tag_id, event, status);

@@ -147,10 +147,6 @@ fn check_static() -> bool {
 fn get_env_bool(key: &str) -> Option<bool> {
     env::var(key).ok().map(|v| {
         let v = v.to_lowercase();
-        if v == "1" || v == "true" || v == "on" {
-            true
-        } else {
-            false
-        }
+        v == "1" || v == "true" || v == "on"
     })
 }

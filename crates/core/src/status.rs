@@ -36,28 +36,19 @@ impl Status {
     /// success or not?
     #[inline(always)]
     pub fn is_ok(&self) -> bool {
-        match self {
-            Status::Ok => true,
-            _ => false,
-        }
+        matches!(self, Status::Ok)
     }
 
     /// has error?
     #[inline(always)]
     pub fn is_err(&self) -> bool {
-        match self {
-            Status::Err(_) => true,
-            _ => false,
-        }
+        matches!(self, Status::Err(_))
     }
 
     /// has pending operations?
     #[inline(always)]
     pub fn is_pending(&self) -> bool {
-        match self {
-            Status::Pending => true,
-            _ => false,
-        }
+        matches!(self, Status::Pending)
     }
 
     /// is timeout error?

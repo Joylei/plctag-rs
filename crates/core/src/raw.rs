@@ -41,7 +41,7 @@ impl RawTag {
         let path = CString::new(path.as_ref()).unwrap();
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };
         if tag_id < 0 {
-            return Err(Status::new(ffi::PLCTAG_ERR_CREATE).into());
+            return Err(Status::new(ffi::PLCTAG_ERR_CREATE));
         }
         Ok(Self { tag_id })
     }
@@ -112,7 +112,7 @@ impl RawTag {
             unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) };
         if val == i32::MIN {
             // error
-            return Err(self.status().into());
+            return Err(self.status());
         }
         Ok(val)
     }
@@ -137,7 +137,7 @@ impl RawTag {
     pub fn size(&self) -> Result<u32> {
         let value = unsafe { ffi::plc_tag_get_size(self.tag_id) };
         if value < 0 {
-            return Err(Status::from(value).into());
+            return Err(Status::from(value));
         }
         Ok(value as u32)
     }
@@ -147,7 +147,7 @@ impl RawTag {
     pub fn set_size(&self, size: u32) -> Result<u32> {
         let value = unsafe { ffi::plc_tag_set_size(self.tag_id, size as i32) };
         if value < 0 {
-            return Err(Status::from(value).into());
+            return Err(Status::from(value));
         }
         Ok(value as u32)
     }
@@ -158,7 +158,7 @@ impl RawTag {
         let val = unsafe { ffi::plc_tag_get_bit(self.tag_id, bit_offset as i32) };
         if val == i32::MIN {
             // error
-            return Err(self.status().into());
+            return Err(self.status());
         }
         Ok(val == 1)
     }
@@ -430,7 +430,7 @@ impl RawTag {
     /// get raw bytes
     #[inline]
     pub fn get_bytes(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
         let size = self.size()? as usize;
@@ -462,7 +462,7 @@ impl RawTag {
     /// set raw bytes
     #[inline]
     pub fn set_bytes(&self, byte_offset: u32, buf: &[u8]) -> Result<usize> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
         let size = self.size()? as usize;

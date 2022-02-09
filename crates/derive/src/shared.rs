@@ -35,10 +35,10 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
                 .iter()
                 .filter(|attr| attr.path.is_ident("tag"))
                 .collect();
-            assert!(attrs.len() > 0);
+            assert!(!attrs.is_empty());
             let offset = match attrs.len() {
                 0 => return Ok(None),
-                1 => get_tag_attr(&attrs[0])?,
+                1 => get_tag_attr(attrs[0])?,
                 _ => {
                     let mut error =
                         syn::Error::new_spanned(&attrs[1], "redundant `tag()` attribute");
@@ -57,7 +57,7 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
         })
         .collect::<syn::Result<Vec<_>>>()?;
 
-    if items.len() == 0 {
+    if items.is_empty() {
         panic!("this derive macro requires at least one tag() attribute on structs")
     }
     Ok(items)

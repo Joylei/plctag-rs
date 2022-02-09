@@ -188,10 +188,8 @@ impl PathBuilder {
                         return Err(Error("path required for controllogix"));
                     }
                     return Ok(()); //skip check for elem_size
-                } else if plc == PlcKind::Micro800 {
-                    if self.path.is_some() {
-                        return Err(Error("path must not provided for micro800"));
-                    }
+                } else if plc == PlcKind::Micro800 && self.path.is_some() {
+                    return Err(Error("path must not provided for micro800"));
                 }
                 if self.elem_size.is_none() {
                     return Err(Error("element size required"));
