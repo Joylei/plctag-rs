@@ -5,8 +5,11 @@
 // License: MIT
 
 use crate::*;
-use std::time::{Duration, Instant};
-use std::{ffi::CString, thread};
+use std::{
+    ffi::{c_void, CString},
+    thread,
+    time::{Duration, Instant},
+};
 
 #[cfg(feature = "event")]
 use crate::event::{listen, Event, Handler};
@@ -485,10 +488,26 @@ impl RawTag {
         rc.into()
     }
 
+    /// note: registering a new callback will override existing one
+    #[cfg(not(feature = "event"))]
+    #[inline]
+    pub unsafe fn register_callback_ex(
+        &self,
+        cb: Option<
+            unsafe extern "C" fn(tag_id: i32, event: i32, status: i32, user_data: *mut c_void),
+        >,
+        user_data: *mut c_void,
+    ) -> Status {
+        //unregister first
+        let _ = ffi::plc_tag_unregister_callback(self.tag_id);
+        let rc = ffi::plc_tag_register_callback_ex(self.tag_id, cb, user_data);
+        rc.into()
+    }
+
     #[cfg(not(feature = "event"))]
     #[inline(always)]
-    pub fn unregister_callback(&self) -> Status {
-        let rc = unsafe { ffi::plc_tag_unregister_callback(self.tag_id) };
+    pub unsafe fn unregister_callback(&self) -> Status {
+        let rc = ffi::plc_tag_unregister_callback(self.tag_id);
         rc.into()
     }
 
