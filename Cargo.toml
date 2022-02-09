@@ -2,6 +2,7 @@
 name = "plctag"
 version = "0.2.1"
 edition = "2021"
+resolver = "2"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
 readme = "README.md"
 license = "MIT"
@@ -14,6 +15,9 @@ authors = ["joylei <leingliu@gmail.com>"]
 
 [package.metadata.docs.rs]
 all-features = true
+
+[badges]
+maintenance = { status = "actively-developed" }
 
 [lib]
 name = "plctag"
