@@ -8,14 +8,13 @@ extern crate bindgen;
 extern crate cmake;
 extern crate pkg_config;
 
-use std::env;
-use std::ffi::OsStr;
-use std::fs;
-use std::path::Component;
-use std::path::Path;
-use std::path::PathBuf;
-
 use fs_extra::dir::CopyOptions;
+use std::{
+    env,
+    ffi::OsStr,
+    fs,
+    path::{Component, Path, PathBuf},
+};
 
 fn main() {
     let is_static = check_static();
