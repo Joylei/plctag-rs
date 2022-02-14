@@ -8,6 +8,7 @@ use core::convert::From;
 
 /// provides debugging output when enabled
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u8)]
 pub enum DebugLevel {
     /// 0 - disables debugging output
     None,
@@ -21,28 +22,6 @@ pub enum DebugLevel {
     Detail,
     /// 5 - outputs extremely detailed information. Do not use this unless you are trying to debug detailed information about every mutex lock and release. Will output many lines of output per millisecond. You have been warned!
     Spew,
-}
-
-impl DebugLevel {
-    /// number representation of the value
-    #[inline]
-    pub fn value(self) -> u8 {
-        self.into()
-    }
-}
-
-impl From<DebugLevel> for u8 {
-    #[inline]
-    fn from(level: DebugLevel) -> u8 {
-        match level {
-            DebugLevel::None => 0,
-            DebugLevel::Error => 1,
-            DebugLevel::Warn => 2,
-            DebugLevel::Info => 3,
-            DebugLevel::Detail => 4,
-            DebugLevel::Spew => 5,
-        }
-    }
 }
 
 impl From<u8> for DebugLevel {
