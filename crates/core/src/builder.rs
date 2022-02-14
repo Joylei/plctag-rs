@@ -262,7 +262,7 @@ impl PathBuilder {
         }
 
         if let Some(debug) = self.debug {
-            let level: u8 = debug as u8;
+            let level = debug as u8;
             path_buf.push(format!("debug={}", level));
         }
         let buf = path_buf.join("&");

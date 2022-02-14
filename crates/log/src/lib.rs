@@ -67,7 +67,7 @@ use std::os::raw::c_char;
 /// `libplctag` will print logs to stdout even if you register your own logger by `plc::register_logger`
 #[inline]
 pub fn set_debug_level(debug: DebugLevel) {
-    let level: u8 = debug.into();
+    let level = debug as u8;
     unsafe { ffi::plc_tag_set_debug_level(level as i32) };
 }
 
