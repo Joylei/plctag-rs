@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use plctag::futures::{AsyncTag, Pool};
+use plctag::futures::TagEntry;
+use tokio::sync::Mutex;
 use tokio::task;
 
 fn bench_read(c: &mut Criterion) {
@@ -8,20 +11,23 @@ fn bench_read(c: &mut Criterion) {
             .enable_all()
             .build()
             .unwrap();
-        let pool = rt.block_on(async {
-            Pool::new()
+        let tags = rt.block_on(async {
+            let mut tags = vec![];
+            for i in 0..20 {
+                let options =  format!("protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.0.83&name=Car_Pos[{}]&elem_count=1", i);
+                let tag = TagEntry::create(options).await.unwrap();
+                tags.push(Arc::new(Mutex::new(tag)));
+            };
+            tags
         });
-        let tags:Vec<_> = (0..20).map(|i| format!("protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.0.83&name=Car_Pos[{}]&elem_count=1", i)).collect();
 
-        b.to_async(rt).iter_batched(||  (pool.clone(), tags.clone()) ,
-            |(pool, tags)| async move {
-                let tasks =  tags.iter().map(|path|{
-                    let pool = pool.clone();
-                    let path = path.clone();
+
+        b.to_async(rt).iter_batched(||  tags.clone(),
+            |tags| async move {
+                let tasks =  tags.into_iter().map(|tag|{
                     task::spawn(async move {
-                        let tag = pool.entry(path).await.unwrap();
-                        let tag_ref = tag.get().await.unwrap();
-                        let _value: i32 = tag_ref.read_value(0).await.unwrap();
+                        let mut guard = tag.lock().await;
+                        let _value: i32 = guard.read_value(0).await.unwrap();
                     })
                    });
                    futures::future::join_all(tasks).await;

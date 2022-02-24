@@ -14,7 +14,7 @@ authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
 plctag-core = { path = "../core", version = "0.2" }
-parking_lot = "0.11"
+parking_lot = "0.12"
 tokio = { version = "1", default-features = false, features = [
     "rt-multi-thread",
     "time",
@@ -23,6 +23,7 @@ tokio = { version = "1", default-features = false, features = [
 ] }
 log = "0.4"
 async-trait = "0.1"
+futures-util = "0.3"
 
 [dev-dependencies]
 anyhow = "1"

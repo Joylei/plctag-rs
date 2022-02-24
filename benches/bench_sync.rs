@@ -14,12 +14,10 @@ fn bench_read(c: &mut Criterion) {
         let value: i32 = tag.get_value(0).unwrap();
         value
     };
-    c.bench_function("sync read 10", |b| {
+    c.bench_function("sync read", |b| {
         b.iter(|| {
             // Inner closure, the actual test
-            for _i in 0..10 {
-                black_box(read_tag());
-            }
+            black_box(read_tag());
         })
     });
 }

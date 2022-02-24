@@ -25,8 +25,6 @@ plctag-async= "0.2"
 
 ## Examples
 
-- without pool
-
 ```rust,ignore
 use plctag_async::{AsyncTag, Error, TagEntry};
 use tokio::runtime;
@@ -35,50 +33,14 @@ let rt = runtime::Runtime::new().unwrap()?;
 rt.block_on(async {
    let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 
-   let tag = TagEntry::create(path).await.unwrap();
-   let tag_ref = tag.get().await.unwrap();
+   let mut tag = TagEntry::create(path).await.unwrap();
    let offset = 0;
-   let value:u16 = tag_ref.read_value(offset).await.unwrap();
+   let value:u16 = tag.read_value(offset).await.unwrap();
    println!("tag value: {}", value);
 
    let value = value + 10;
-   tag_ref.write_value(offset, value).await.unwrap();
+   tag.write_value(offset, value).await.unwrap();
 });
-```
-
-- with pool
-
-```rust,ignore
-use plctag_async::{AsyncTag, Error, Pool, PoolEntry};
-use tokio::runtime;
-
-let rt = runtime::Runtime::new().unwrap()?;
-rt.block_on(async {
-   let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
-   let pool = Pool::new();
-   let tag = pool.entry(path).await.unwrap();
-   let tag_ref = tag.get().await.unwrap();
-   let offset = 0;
-   let value:u16 = tag_ref.read_value(offset).await.unwrap();
-   println!("tag value: {}", value);
-
-   let value = value + 10;
-   tag_ref.write_value(offset, value).await.unwrap();
-});
-```
-
-## Thread-safety
-
-It's thread-safe to perform operations with `plctag-async`.
-
-## Build & Test
-
-Please refer to `How to use` to setup build environment.
-
-Because mutithread will cause troubles, you need to run tests with:
-
-```shell
-cargo test -- --test-threads=1
 ```
 
 ## License
@@ -90,33 +52,14 @@ MIT
 
 extern crate plctag_core;
 extern crate tokio;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate async_trait;
-
-mod cell;
 mod entry;
-mod op;
-mod pool;
 
 pub use entry::TagEntry;
-pub use op::AsyncTag;
 
 use plctag_core::{RawTag, Status};
 use std::{fmt, sync::Arc};
 use tokio::task::{self, JoinError};
 
-/// Tag instance will be put into pool for reuse.
-///
-/// # Note
-/// - Tag instances will not drop if the [`PoolEntry`] or [`Pool`] is still on the stack
-///
-pub type Pool = pool::Pool<RawTag>;
-/// Tag Instance in the pool
-pub type PoolEntry = pool::Entry<RawTag>;
-/// Tag exclusive reference
-pub type TagRef<'a> = private::TagRef<'a, RawTag>;
 /// result for [`plctag-async`]
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -163,73 +106,24 @@ impl From<JoinError> for Error {
     }
 }
 
-mod private {
-    /// exclusive tag ref to ensure thread and operations safety
-    pub struct TagRef<'a, T> {
-        pub(crate) tag: &'a T,
-        #[allow(dead_code)]
-        pub(crate) lock: tokio::sync::MutexGuard<'a, ()>,
-    }
+//#[cfg(test)]
+// mod test {
+//     use super::*;
 
-    impl<T> AsRef<T> for TagRef<'_, T> {
-        #[inline(always)]
-        fn as_ref(&self) -> &T {
-            &self.tag
-        }
-    }
-}
+//     #[test]
+//     fn test_entry() -> anyhow::Result<()> {
+//         let rt = tokio::runtime::Runtime::new()?;
+//         rt.block_on(async {
+//             let path = "make=system&family=library&name=debug&debug=4";
+//             let mut tag = TagEntry::create(path).await?;
 
-#[cfg(test)]
-mod test {
-    use super::*;
+//             let level: i32 = tag.read_value(0).await?;
+//             assert_eq!(level, 4);
 
-    #[test]
-    fn test_entry() -> anyhow::Result<()> {
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
-            let path = "make=system&family=library&name=debug&debug=4";
-            let entry = TagEntry::create(path).await?;
-            let tag = entry.get().await?;
-
-            let level: i32 = tag.read_value(0).await?;
-            assert_eq!(level, 4);
-
-            tag.write_value(0, 1).await?;
-            let level: i32 = tag.read_value(0).await?;
-            assert_eq!(level, 1);
-            Ok(())
-        })
-    }
-
-    #[test]
-    fn test_pool() -> anyhow::Result<()> {
-        let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
-            let pool = Pool::new();
-            let path = "make=system&family=library&name=debug&debug=4";
-
-            //retrieve 1st
-            {
-                let entry = pool.entry(path).await?;
-                let tag = entry.get().await?;
-
-                let level: i32 = tag.read_value(0).await?;
-                assert_eq!(level, 4);
-
-                tag.write_value(0, &1_i32).await?;
-                let level: i32 = tag.read_value(0).await?;
-                assert_eq!(level, 1);
-            }
-
-            //retrieve 2nd
-            {
-                let entry = pool.entry(path).await?;
-                let tag = entry.get().await?;
-
-                let level: i32 = tag.read_value(0).await?;
-                assert_eq!(level, 1);
-            }
-            Ok(())
-        })
-    }
-}
+//             tag.write_value(0, 1).await?;
+//             let level: i32 = tag.read_value(0).await?;
+//             assert_eq!(level, 1);
+//             Ok(())
+//         })
+//     }
+// }
