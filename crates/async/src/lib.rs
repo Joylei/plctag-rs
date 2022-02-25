@@ -51,14 +51,12 @@ MIT
 #![warn(missing_docs)]
 
 extern crate plctag_core;
-extern crate tokio;
 mod entry;
 
 pub use entry::TagEntry;
 
 use plctag_core::{RawTag, Status};
 use std::{fmt, sync::Arc};
-use tokio::task::{self, JoinError};
 
 /// result for [`plctag-async`]
 pub type Result<T> = std::result::Result<T, Error>;
@@ -68,8 +66,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// plc tag error
     TagError(Status),
-    /// tokio task join error
-    JoinError(tokio::task::JoinError),
     /// other error
     Other(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
@@ -78,7 +74,6 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::TagError(_) => None,
-            Error::JoinError(e) => Some(e),
             Error::Other(e) => Some(e.as_ref()),
         }
     }
@@ -88,7 +83,6 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::TagError(e) => write!(f, "TagError - {}", e),
-            Error::JoinError(e) => write!(f, "{}", e),
             Error::Other(e) => write!(f, "{}", e),
         }
     }
@@ -99,31 +93,3 @@ impl From<Status> for Error {
         Error::TagError(s)
     }
 }
-
-impl From<JoinError> for Error {
-    fn from(e: JoinError) -> Self {
-        Error::JoinError(e)
-    }
-}
-
-//#[cfg(test)]
-// mod test {
-//     use super::*;
-
-//     #[test]
-//     fn test_entry() -> anyhow::Result<()> {
-//         let rt = tokio::runtime::Runtime::new()?;
-//         rt.block_on(async {
-//             let path = "make=system&family=library&name=debug&debug=4";
-//             let mut tag = TagEntry::create(path).await?;
-
-//             let level: i32 = tag.read_value(0).await?;
-//             assert_eq!(level, 4);
-
-//             tag.write_value(0, 1).await?;
-//             let level: i32 = tag.read_value(0).await?;
-//             assert_eq!(level, 1);
-//             Ok(())
-//         })
-//     }
-// }
