@@ -11,9 +11,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(feature = "event")]
-use crate::event::{listen, Event, Handler};
-
 /// Tag Identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TagId(pub(crate) i32);
@@ -69,7 +66,7 @@ impl RawTag {
         TagId(self.tag_id)
     }
 
-    /// perform write operation.
+    /// perform read operation.
     /// - blocking read if timeout > 0
     /// - non-blocking read if timeout = 0
     #[inline(always)]
@@ -493,7 +490,6 @@ impl RawTag {
     }
 
     /// note: registering a new callback will override existing one
-    #[cfg(not(feature = "event"))]
     #[inline(always)]
     pub unsafe fn register_callback(
         &self,
@@ -506,7 +502,6 @@ impl RawTag {
     }
 
     /// note: registering a new callback will override existing one
-    #[cfg(not(feature = "event"))]
     #[inline]
     pub unsafe fn register_callback_ex(
         &self,
@@ -526,29 +521,6 @@ impl RawTag {
     pub unsafe fn unregister_callback(&self) -> Status {
         let rc = ffi::plc_tag_unregister_callback(self.tag_id);
         rc.into()
-    }
-
-    /// listen for events
-    ///
-    /// # Examples
-    /// ```rust,ignore
-    /// use plctag::event::Event;
-    /// let tag: RawTag = ...;
-    /// let listener = tag.listen(|id, evt, status|
-    /// {
-    ///      println!("tag event: {}, status: {}", evt, status);   
-    /// });
-    ///
-    /// //remove listener later
-    /// drop(listener);
-    /// ```
-    #[cfg(feature = "event")]
-    #[inline(always)]
-    pub fn listen<F>(&self, f: F) -> Handler
-    where
-        F: FnMut(TagId, Event, Status) + Send + Sync + Clone + 'static,
-    {
-        listen(&self.tag_id, f)
     }
 
     /// Abort the pending operation.

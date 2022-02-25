@@ -89,9 +89,6 @@ pub mod ffi {
 
 pub mod builder;
 mod debug;
-#[cfg(feature = "event")]
-/// event handling
-pub mod event;
 mod raw;
 mod status;
 #[cfg(feature = "value")]
