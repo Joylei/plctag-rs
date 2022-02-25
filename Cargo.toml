@@ -25,11 +25,12 @@ path = "src/lib.rs"
 
 [features]
 default = ["full"]
-full = ["derive", "async", "value", "log"]
+full = ["derive", "async", "value", "log", "builder"]
 log = ["plctag-log"]
 derive = ["plctag-derive"]
 async = ["plctag-async"]
 value = ["plctag-core/value", "plctag-async/value"]
+builder = ["plctag-core/builder"]
 
 [workspace]
 members = [

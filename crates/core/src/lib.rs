@@ -71,6 +71,7 @@ pub mod ffi {
     pub use plctag_sys::*;
 }
 
+#[cfg(feature = "builder")]
 pub mod builder;
 mod debug;
 mod raw;

@@ -18,5 +18,6 @@ log = "0.4"
 paste = { version = "1", optional = true }
 
 [features]
-default = ["value"]
+default = ["value", "builder"]
 value = ["paste"]
+builder = []
