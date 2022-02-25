@@ -1,6 +1,6 @@
 # plctag-async
 
-tokio based async wrapper for `libplctag`.
+async wrapper for `libplctag`.
 
 [![crates.io](https://img.shields.io/crates/v/plctag-async.svg)](https://crates.io/crates/plctag-async)
 [![docs](https://docs.rs/plctag-async/badge.svg)](https://docs.rs/plctag-async)
@@ -17,29 +17,6 @@ plctag-async= "0.2"
 ```
 
 ## Examples
-
-- without pool
-
-```rust
-use plctag_async::{AsyncTag, Error, TagEntry};
-use tokio::runtime;
-
-let rt = runtime::Runtime::new().unwrap()?;
-rt.block_on(async {
-   let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
-
-   let tag = TagEntry::create(path).await.unwrap();
-   let tag_ref = tag.get().await.unwrap();
-   let offset = 0;
-   let value:u16 = tag_ref.read_value(offset).await.unwrap();
-   println!("tag value: {}", value);
-
-   let value = value + 10;
-   tag_ref.write_value(offset, value).await.unwrap();
-});
-```
-
-- with pool
 
 ```rust
 use plctag_async::{AsyncTag, Error, Pool, PoolEntry};
