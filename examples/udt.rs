@@ -28,7 +28,7 @@ fn main() {
     let mut value: MyUDT = tag.get_value(offset).unwrap();
     println!("tag value: {:?}", value);
 
-    value.v1 = value.v1 + 10;
+    value.v1 += 10;
     tag.set_value(offset, value).unwrap();
 
     //write tag

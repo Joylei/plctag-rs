@@ -19,6 +19,7 @@ pub struct RawTag {
 
 impl RawTag {
     /// create new [`RawTag`]
+    ///
     /// # Note
     /// if you passed wrong path parameters, your program might crash.
     /// you might want to use `PathBuilder` to build a path.
@@ -31,7 +32,7 @@ impl RawTag {
     /// let tag = RawTag::new(path, timeout).unwrap();
     /// ```
     ///
-    /// ## Tag String Attributes
+    /// # Tag String Attributes
     /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
     ///
     pub fn new<P: Into<Vec<u8>>>(path: P, timeout: u32) -> Result<Self> {
@@ -44,6 +45,13 @@ impl RawTag {
     }
 
     /// create new [`RawTag`]
+    ///
+    /// # Tag String Attributes
+    /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
+    ///
+    /// # Safety
+    /// please keep the callback and user data alive before tag drops.
+    /// you might call [`RawTag::unregister_callback`] to unregister the callback.
     pub unsafe fn new_with_callback<P: Into<Vec<u8>>>(
         path: P,
         timeout: u32,
@@ -490,7 +498,11 @@ impl RawTag {
     }
 
     /// note: registering a new callback will override existing one
-    #[inline(always)]
+    ///
+    /// # Safety
+    /// please keep the callback alive before tag drops.
+    /// you might call [`RawTag::unregister_callback`] to unregister the callback.
+    #[inline]
     pub unsafe fn register_callback(
         &self,
         cb: Option<unsafe extern "C" fn(tag_id: i32, event: i32, status: i32)>,
@@ -502,6 +514,10 @@ impl RawTag {
     }
 
     /// note: registering a new callback will override existing one
+    ///
+    /// # Safety
+    /// please keep the callback and user data alive before tag drops.
+    /// you might call [`RawTag::unregister_callback`] to unregister the callback.
     #[inline]
     pub unsafe fn register_callback_ex(
         &self,
@@ -517,9 +533,9 @@ impl RawTag {
     }
 
     /// unregister the callback
-    #[inline(always)]
-    pub unsafe fn unregister_callback(&self) -> Status {
-        let rc = ffi::plc_tag_unregister_callback(self.tag_id);
+    #[inline]
+    pub fn unregister_callback(&self) -> Status {
+        let rc = unsafe { ffi::plc_tag_unregister_callback(self.tag_id) };
         rc.into()
     }
 

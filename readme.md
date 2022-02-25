@@ -67,27 +67,27 @@ struct MyUDT {
     v2: u16,
 }
 
-fn main() {
-    let timeout = 100; //ms
-                       // YOUR TAG DEFINITION
-    let path = "protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag2&elem_count=2&elem_size=16";
-    let tag = RawTag::new(path, timeout).unwrap();
 
-    //read tag
-    let status = tag.read(timeout);
-    assert!(status.is_ok());
-    let offset = 0;
-    let mut value: MyUDT = tag.get_value(offset).unwrap();
-    println!("tag value: {:?}", value);
+let timeout = 100; //ms
+                    // YOUR TAG DEFINITION
+let path = "protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag2&elem_count=2&elem_size=16";
+let tag = RawTag::new(path, timeout).unwrap();
 
-    value.v1 = value.v1 + 10;
-    tag.set_value(offset, value).unwrap();
+//read tag
+let status = tag.read(timeout);
+assert!(status.is_ok());
+let offset = 0;
+let mut value: MyUDT = tag.get_value(offset).unwrap();
+println!("tag value: {:?}", value);
 
-    //write tag
-    let status = tag.write(timeout);
-    assert!(status.is_ok());
-    println!("write done!");
-}
+value.v1 += 10;
+tag.set_value(offset, value).unwrap();
+
+//write tag
+let status = tag.write(timeout);
+assert!(status.is_ok());
+println!("write done!");
+
 ```
 
 Note:
@@ -100,22 +100,20 @@ use plctag::futures::{AsyncTag, Error};
 
 use tokio::runtime;
 
-fn main() {
-    let rt = runtime::Runtime::new().unwrap();
-    let res: Result<_, Error> = rt.block_on(async {
-        let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16"; // YOUR TAG DEFINITION
-        let tag = AsyncTag::create(path).await?;
-        let tag_ref = tag.get().await?;
-        let offset = 0;
-        let value: u16 = tag_ref.read_value(offset).await?;
-        println!("tag value: {}", value);
+let rt = runtime::Runtime::new().unwrap();
+let res: Result<_, Error> = rt.block_on(async {
+    let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16"; // YOUR TAG DEFINITION
+    let tag = AsyncTag::create(path).await?;
+    let tag_ref = tag.get().await?;
+    let offset = 0;
+    let value: u16 = tag_ref.read_value(offset).await?;
+    println!("tag value: {}", value);
 
-        let value = value + 10;
-        tag_ref.write_value(offset, value).await?;
-        Ok(())
-    });
-    res.unwrap();
-}
+    let value = value + 10;
+    tag_ref.write_value(offset, value).await?;
+    Ok(())
+});
+res.unwrap();
 
 ```
 
@@ -125,23 +123,21 @@ fn main() {
 use plctag::builder::*;
 use plctag::RawTag;
 
-fn main() {
-    let timeout = 100;
-    let path = PathBuilder::default()
-        .protocol(Protocol::EIP)
-        .gateway("192.168.1.120")
-        .plc(PlcKind::ControlLogix)
-        .name("MyTag1")
-        .element_size(16)
-        .element_count(1)
-        .path("1,0")
-        .read_cache_ms(0)
-        .build()
-        .unwrap();
-    let tag = RawTag::new(path, timeout).unwrap();
-    let status = tag.status();
-    assert!(status.is_ok());
-}
+let timeout = 100;
+let path = PathBuilder::default()
+    .protocol(Protocol::EIP)
+    .gateway("192.168.1.120")
+    .plc(PlcKind::ControlLogix)
+    .name("MyTag1")
+    .element_size(16)
+    .element_count(1)
+    .path("1,0")
+    .read_cache_ms(0)
+    .build()
+    .unwrap();
+let tag = RawTag::new(path, timeout).unwrap();
+let status = tag.status();
+assert!(status.is_ok());
 
 ```
 

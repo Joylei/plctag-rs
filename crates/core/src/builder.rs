@@ -37,7 +37,6 @@ impl From<fmt::Error> for Error {
 /// use plctag_core::builder::*;
 /// use plctag_core::RawTag;
 ///
-/// fn main() {
 ///     let timeout = 100;
 ///     let path = PathBuilder::default()
 ///         .protocol(Protocol::EIP)
@@ -53,9 +52,10 @@ impl From<fmt::Error> for Error {
 ///     let tag = RawTag::new(path, timeout).unwrap();
 ///     let status = tag.status();
 ///     assert!(status.is_ok());
-/// }
 ///
 /// ```
+///
+/// # Tag String Attributes
 /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for more information.
 ///
 #[derive(Default, Debug)]
