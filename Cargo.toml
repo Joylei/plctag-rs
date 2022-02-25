@@ -17,7 +17,7 @@ authors = ["joylei <leingliu@gmail.com>"]
 all-features = true
 
 [badges]
-maintenance = { status = "actively-developed" }
+maintenance = { status = "passively-maintained" }
 
 [lib]
 name = "plctag"
