@@ -8,6 +8,7 @@
 
 pub use crate::debug::DebugLevel;
 use core::fmt;
+use core::fmt::Write;
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -22,6 +23,12 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl From<fmt::Error> for Error {
+    fn from(_e: fmt::Error) -> Self {
+        Error("fmt error")
+    }
+}
 
 /// builder to build tag full path
 ///
@@ -49,6 +56,8 @@ impl std::error::Error for Error {}
 /// }
 ///
 /// ```
+/// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for more information.
+///
 #[derive(Default, Debug)]
 pub struct PathBuilder {
     protocol: Option<Protocol>,
@@ -56,11 +65,15 @@ pub struct PathBuilder {
     elem_count: Option<usize>,
     elem_size: Option<usize>,
     read_cache_ms: Option<usize>,
+    auto_sync_read_ms: Option<usize>,
+    auto_sync_write_ms: Option<usize>,
     plc: Option<PlcKind>,
     name: Option<String>,
     path: Option<String>,
     gateway: Option<String>,
     use_connected_msg: Option<bool>,
+    allow_packing: Option<bool>,
+    connection_group_id: Option<u16>,
 }
 
 impl PathBuilder {
@@ -68,7 +81,6 @@ impl PathBuilder {
     /// defining the current debugging level.
     /// please use [`plc::set_debug_level`](../plc/fn.set_debug_level.html) instead.
     #[deprecated]
-    #[inline]
     pub fn debug(&mut self, level: DebugLevel) -> &mut Self {
         self.debug = Some(level);
         self
@@ -76,7 +88,6 @@ impl PathBuilder {
 
     /// generic attribute.
     /// Required. Determines the type of the PLC protocol.
-    #[inline]
     pub fn protocol(&mut self, protocol: Protocol) -> &mut Self {
         self.protocol = Some(protocol);
         self
@@ -84,7 +95,6 @@ impl PathBuilder {
 
     /// generic attribute.
     ///  Optional. All tags are treated as arrays. Tags that are not arrays are considered to have a length of one element. This attribute determines how many elements are in the tag. Defaults to one (1)
-    #[inline]
     pub fn element_count(&mut self, count: usize) -> &mut Self {
         self.elem_count = Some(count);
         self
@@ -92,7 +102,6 @@ impl PathBuilder {
 
     /// generic attribute
     /// Required for some protocols or PLC types. This attribute determines the size of a single element of the tag. All tags are considered to be arrays, even those with only one entry. Ignored for Modbus and for ControlLogix-class Allen-Bradley PLCs. This parameter will become optional for as many PLC types as possible
-    #[inline]
     pub fn element_size(&mut self, size: usize) -> &mut Self {
         self.elem_size = Some(size);
         self
@@ -101,14 +110,24 @@ impl PathBuilder {
     /// generic attribute:
     /// Optional. An integer number of milliseconds to cache read data.
     /// Use this attribute to cause the tag read operations to cache data the requested number of milliseconds. This can be used to lower the actual number of requests against the PLC. Example read_cache_ms=100 will result in read operations no more often than once every 100 milliseconds.
-    #[inline]
     pub fn read_cache_ms(&mut self, millis: usize) -> &mut Self {
         self.read_cache_ms = Some(millis);
         self
     }
 
+    /// Optional An integer number of milliseconds to periodically read data from the PLC
+    pub fn auto_sync_read_ms(&mut self, millis: usize) -> &mut Self {
+        self.auto_sync_read_ms = Some(millis);
+        self
+    }
+
+    /// Optional An integer number of milliseconds to buffer tag data changes before writing to the PLC
+    pub fn auto_sync_write_ms(&mut self, millis: usize) -> &mut Self {
+        self.auto_sync_write_ms = Some(millis);
+        self
+    }
+
     /// Required for EIP. Determines the type of the PLC
-    #[inline]
     pub fn plc(&mut self, plc: PlcKind) -> &mut Self {
         self.plc = Some(plc);
         self
@@ -120,7 +139,6 @@ impl PathBuilder {
     /// - ModBus
     /// Required IP address or host name and optional port
     /// This tells the library what host name or IP address to use for the PLC. Can have an optional port at the end, e.g. gateway=10.1.2.3:502 where the :502 part specifies the port.
-    #[inline]
     pub fn gateway(&mut self, gateway: impl AsRef<str>) -> &mut Self {
         self.gateway = Some(gateway.as_ref().to_owned());
         self
@@ -133,7 +151,6 @@ impl PathBuilder {
     /// The supported register type prefixes are co for coil, di for discrete inputs, hr for holding registers and ir for input registers. The type prefix must be present and the register number must be greater than or equal to zero and less than or equal to 65535. Modbus examples: co21 - coil 21, di22 - discrete input 22, hr66 - holding register 66, ir64000 - input register 64000.
     ///
     /// you might want to use `register()` instead of `name()` for Modbus
-    #[inline]
     pub fn name(&mut self, name: impl AsRef<str>) -> &mut Self {
         self.name = Some(name.as_ref().to_owned());
         self
@@ -151,7 +168,6 @@ impl PathBuilder {
     /// - ModBus
     /// Required The server/unit ID. Must be an integer value between 0 and 255.
     /// Servers may support more than one unit or may bridge to other units.
-    #[inline]
     pub fn path(&mut self, path: impl AsRef<str>) -> &mut Self {
         self.path = Some(path.as_ref().to_owned());
         self
@@ -160,20 +176,31 @@ impl PathBuilder {
     /// EIP only
     /// Optional 1 = use CIP connection, 0 = use UCMM.
     /// Control whether to use connected or unconnected messaging. Only valid on Logix-class PLCs. Connected messaging is required on Micro800 and DH+ bridged links. Default is PLC-specific and link-type specific. Generally you do not need to set this.
-    #[inline]
     pub fn use_connected_msg(&mut self, yes: bool) -> &mut Self {
         self.use_connected_msg = Some(yes);
+        self
+    }
+
+    /// EIP only
+    /// Optional 1 = (default) allow use of multi-request CIP command, 0 = use only one CIP request per packet
+    pub fn allow_packing(&mut self, allow: bool) -> &mut Self {
+        self.allow_packing = Some(allow);
+        self
+    }
+
+    /// connection group
+    pub fn connection_group(&mut self, group_id: u16) -> &mut Self {
+        self.connection_group_id = Some(group_id);
         self
     }
 
     /// check required attributes or conflict attributes
     fn check(&self) -> Result<()> {
         //check protocol, required
-        if self.protocol.is_none() {
-            return Err(Error("protocol required"));
-        }
-
-        let protocol = self.protocol.unwrap();
+        let protocol = match self.protocol {
+            None => return Err(Error("protocol required")),
+            Some(v) => v,
+        };
         // check required attributes
         match protocol {
             Protocol::EIP => {
@@ -223,50 +250,65 @@ impl PathBuilder {
     /// build full tag path
     pub fn build(&self) -> Result<String> {
         self.check()?;
-        let mut path_buf = vec![];
+        let mut path_buf = String::new();
         let protocol = self.protocol.unwrap();
-        path_buf.push(format!("protocol={}", protocol));
+        write!(path_buf, "protocol={}", protocol)?;
 
         match protocol {
             Protocol::EIP => {
                 if let Some(plc) = self.plc {
-                    path_buf.push(format!("plc={}", plc));
+                    write!(path_buf, "&plc={}", plc)?;
                 }
 
                 if let Some(yes) = self.use_connected_msg {
-                    path_buf.push(format!("use_connected_msg={}", yes as u8));
+                    write!(path_buf, "&use_connected_msg={}", yes as u8)?;
+                }
+
+                if let Some(v) = self.allow_packing {
+                    write!(path_buf, "&allow_packing={}", v as u8)?;
                 }
             }
             Protocol::ModBus => {}
         }
 
         if let Some(ref gateway) = self.gateway {
-            path_buf.push(format!("gateway={}", gateway));
+            write!(path_buf, "&gateway={}", gateway)?;
         }
         if let Some(ref path) = self.path {
-            path_buf.push(format!("path={}", path));
+            write!(path_buf, "&path={}", path)?;
         }
         if let Some(ref name) = self.name {
-            path_buf.push(format!("name={}", name));
+            write!(path_buf, "&name={}", name)?;
         }
         if let Some(elem_count) = self.elem_count {
-            path_buf.push(format!("elem_count={}", elem_count));
+            write!(path_buf, "&elem_count={}", elem_count)?
         }
 
         if let Some(elem_size) = self.elem_size {
-            path_buf.push(format!("elem_size={}", elem_size));
+            write!(path_buf, "&elem_size={}", elem_size)?;
         }
 
-        if let Some(read_cache_ms) = self.read_cache_ms {
-            path_buf.push(format!("read_cache_ms={}", read_cache_ms));
+        if let Some(ms) = self.read_cache_ms {
+            write!(path_buf, "&read_cache_ms={}", ms)?;
+        }
+
+        if let Some(ms) = self.auto_sync_read_ms {
+            write!(path_buf, "&auto_sync_read_ms={}", ms)?;
+        }
+
+        if let Some(ms) = self.auto_sync_write_ms {
+            write!(path_buf, "&auto_sync_write_ms={}", ms)?;
+        }
+
+        if let Some(group_id) = self.connection_group_id {
+            write!(path_buf, "&connection_group_id={}", group_id)?;
         }
 
         if let Some(debug) = self.debug {
             let level = debug as u8;
-            path_buf.push(format!("debug={}", level));
+            write!(path_buf, "&debug={}", level)?;
         }
-        let buf = path_buf.join("&");
-        Ok(buf)
+        Ok(path_buf)
     }
 }
 
@@ -288,15 +330,15 @@ impl fmt::Display for Protocol {
     }
 }
 
-///modbus supported register
+/// modbus supported register
 pub enum Register {
-    ///coil registers
+    /// coil registers
     Coil(u16),
     ///discrete inputs
     Discrete(u16),
-    ///holding registers
+    /// holding registers
     Holding(u16),
-    ///input registers
+    /// input registers
     Input(u16),
 }
 
@@ -326,6 +368,8 @@ pub enum PlcKind {
     Micro800,
     /// Tell the library that this tag is in a Micrologix PLC
     MicroLogix,
+    /// Omron PLC. Synonym for omron-njnx, omron-nj, omron-nx, njnx, nx1p2
+    Omron,
 }
 
 impl fmt::Display for PlcKind {
@@ -337,6 +381,7 @@ impl fmt::Display for PlcKind {
             PlcKind::LogixPCCC => write!(f, "logixpccc"),
             PlcKind::Micro800 => write!(f, "micro800"),
             PlcKind::MicroLogix => write!(f, "micrologix"),
+            PlcKind::Omron => write!(f, "omron-njnx"),
         }
     }
 }
@@ -355,9 +400,10 @@ mod tests {
             .element_count(1)
             .path("1,0")
             .read_cache_ms(0)
+            .connection_group(10)
             .build()
             .unwrap();
-        assert_eq!(path, "protocol=ab-eip&plc=controllogix&gateway=192.168.1.120&path=1,0&name=MyTag1&elem_count=1&elem_size=16&read_cache_ms=0");
+        assert_eq!(path, "protocol=ab-eip&plc=controllogix&gateway=192.168.1.120&path=1,0&name=MyTag1&elem_count=1&elem_size=16&read_cache_ms=0&connection_group_id=10");
     }
 
     #[test]
