@@ -34,14 +34,15 @@ macro_rules! value_impl {
 ///
 /// # Examples
 /// with this trait, you can simply get or set tag value
-/// ```rust,ignore
-/// use plctag::{RawTag, Encode, Decode};
-/// let timeout = 100;//ms
+/// ```rust,no_run
+/// use plctag_core::{RawTag, Encode, Decode, ValueExt};
+/// let timeout = 1000;//ms
 /// let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 /// let tag = RawTag::new(path, timeout).unwrap();
 ///
 /// //read tag
-/// tag.read(timeout).unwrap();
+/// let status = tag.read(timeout);
+/// assert!(status.is_ok());
 /// let offset = 0;
 /// let value:u16 = tag.get_value(offset).unwrap();
 /// println!("tag value: {}", value);
@@ -50,16 +51,17 @@ macro_rules! value_impl {
 /// tag.set_value(offset, value).unwrap();
 ///
 /// //write tag
-/// tag.write(timeout).unwrap();
+/// let status = tag.write(timeout);
+/// assert!(status.is_ok());
 /// println!("write done!");
 /// ```
 ///
 /// # UDT
-/// ```rust, ignore
-/// use plctag::{RawTag, Decode, Encode}
+/// ```rust,no_run
+/// use plctag_core::{RawTag, Decode, Encode, Result, ValueExt};
 ///
 /// // define your UDT
-/// #[derive(Default)]
+/// #[derive(Default, Debug)]
 /// struct MyUDT {
 ///     v1:u16,
 ///     v2:u16,
@@ -72,7 +74,7 @@ macro_rules! value_impl {
 ///     }
 /// }
 /// impl Encode for MyUDT {
-///     fn encode(&mut self, tag: &RawTag, offset: u32) -> Result<()>{
+///     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()>{
 ///         self.v1.encode(tag, offset)?;
 ///         self.v2.encode(tag, offset+2)?;
 ///         Ok(())
@@ -85,16 +87,18 @@ macro_rules! value_impl {
 ///     let tag = RawTag::new(path, timeout).unwrap();
 ///
 ///     //read tag
-///     tag.read(timeout).unwrap();
+///     let status = tag.read(timeout);
+///     assert!(status.is_ok());
 ///     let offset = 0;
 ///     let mut value:MyUDT = tag.get_value(offset).unwrap();
-///     println!("tag value: {}", value);
+///     println!("tag value: {:?}", value);
 ///
 ///     value.v1 = value.v1 + 10;
 ///     tag.set_value(offset, value).unwrap();
 ///
 ///     //write tag
-///     tag.write(timeout).unwrap();
+///     let status = tag.write(timeout);
+///     assert!(status.is_ok());
 ///     println!("write done!");
 /// }
 ///

@@ -7,13 +7,6 @@ a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust
 [![build](https://github.com/joylei/plctag-rs/workflows/build/badge.svg?branch=master)](https://github.com/joylei/plctag-rs/actions?query=workflow%3A%22build%22)
 [![license](https://img.shields.io/crates/l/plctag.svg)](https://github.com/joylei/plctag-rs/blob/master/LICENSE)
 
-## Why plctag-rs
-
-- thin wrapper on `libplctag`
-- UDT support with macros
-- with asynchronous & thread-safe based on `tokio`
-- builder to build tag
-
 ## How to use
 
 Add `plctag` to your Cargo.toml
@@ -103,7 +96,7 @@ Do not perform expensive operations when you derives `Decode` or `Encode`.
 ### Async
 
 ```rust
-use plctag::futures::{AsyncTag, Error, TagEntry};
+use plctag::futures::{AsyncTag, Error};
 
 use tokio::runtime;
 
@@ -111,7 +104,7 @@ fn main() {
     let rt = runtime::Runtime::new().unwrap();
     let res: Result<_, Error> = rt.block_on(async {
         let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16"; // YOUR TAG DEFINITION
-        let tag = TagEntry::create(path).await?;
+        let tag = AsyncTag::create(path).await?;
         let tag_ref = tag.get().await?;
         let offset = 0;
         let value: u16 = tag_ref.read_value(offset).await?;
@@ -166,19 +159,9 @@ set_debug_level(DebugLevel::Info); // set debug level
 
 ```
 
-## Thread-safety
+## Build
 
-Operations are not thread-safe in this library except async wrappers, please use `std::sync::Mutex` or something similar to enforce thread-safety.
-
-## Build & Test
-
-Please refer to `How to use` to setup build environment.
-
-Because mutithread will cause troubles, you need to run tests with:
-
-```shell
-cargo test --all -- --test-threads=1
-```
+Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#build) to setup build environment.
 
 ## Bench
 

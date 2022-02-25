@@ -75,8 +75,8 @@ impl Status {
     /// see `libplctag` for all status code
     ///
     /// # Examples
-    /// ```rust,ignore
-    /// use plctag::Status;
+    /// ```rust,no_run
+    /// use plctag_core::Status;
     ///
     /// let status = Status::Ok;
     /// let msg = status.decode();

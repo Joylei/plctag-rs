@@ -13,7 +13,7 @@ Add `plctag-async` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag-async= "0.2"
+plctag-async= "0.3"
 ```
 
 ## Examples
@@ -37,19 +37,9 @@ rt.block_on(async {
 });
 ```
 
-## Thread-safety
+## Build
 
-It's thread-safe to perform operations with `plctag-async`.
-
-## Build & Test
-
-Please refer to `How to use` to setup build environment.
-
-Because mutithread will cause troubles, you need to run tests with:
-
-```shell
-cargo test -- --test-threads=1
-```
+Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#build) to setup build environment.
 
 ## License
 

@@ -24,9 +24,9 @@ impl RawTag {
     /// you might want to use `PathBuilder` to build a path.
     ///
     /// # Examples
-    /// ```rust,ignore
-    /// use plctag::{RawTag};
-    ///
+    /// ```rust,no_run
+    /// use plctag_core::{RawTag};
+    /// const timeout:u32 = 1000;
     /// let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
     /// let tag = RawTag::new(path, timeout).unwrap();
     /// ```

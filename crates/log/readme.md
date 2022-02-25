@@ -19,7 +19,7 @@ Add `plctag-log` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag-log= "0.2"
+plctag-log= "0.3"
 ```
 
 ### Note
@@ -36,6 +36,10 @@ set_debug_level(DebugLevel::Info); // set debug level
 
 // now, you can receive log messages by any of logging implementations of crate `log`
 ```
+
+## Build
+
+Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#build) to setup build environment.
 
 ## License
 

@@ -26,9 +26,9 @@ impl std::error::Error for Error {}
 /// builder to build tag full path
 ///
 /// # Examples
-/// ```rust,ignore
-/// use plctag::builder::*;
-/// use plctag::RawTag;
+/// ```rust,no_run
+/// use plctag_core::builder::*;
+/// use plctag_core::RawTag;
 ///
 /// fn main() {
 ///     let timeout = 100;

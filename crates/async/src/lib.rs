@@ -7,7 +7,7 @@
 /*!
 # plctag-async
 
-tokio based async wrapper for `libplctag`.
+async wrapper for `libplctag`.
 
 [![crates.io](https://img.shields.io/crates/v/plctag-async.svg)](https://crates.io/crates/plctag-async)
 [![docs](https://docs.rs/plctag-async/badge.svg)](https://docs.rs/plctag-async)
@@ -20,20 +20,20 @@ Add `plctag-async` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag-async= "0.2"
+plctag-async= "0.3"
 ```
 
 ## Examples
 
-```rust,ignore
-use plctag_async::{AsyncTag, Error, TagEntry};
+```rust,no_run
+use plctag_async::{Error, AsyncTag};
 use tokio::runtime;
 
-let rt = runtime::Runtime::new().unwrap()?;
+let rt = runtime::Runtime::new().unwrap();
 rt.block_on(async {
    let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 
-   let mut tag = TagEntry::create(path).await.unwrap();
+   let mut tag = AsyncTag::create(path).await.unwrap();
    let offset = 0;
    let value:u16 = tag.read_value(offset).await.unwrap();
    println!("tag value: {}", value);
@@ -53,7 +53,7 @@ MIT
 extern crate plctag_core;
 mod entry;
 
-pub use entry::TagEntry;
+pub use entry::AsyncTag;
 
 use plctag_core::{RawTag, Status};
 use std::{fmt, sync::Arc};

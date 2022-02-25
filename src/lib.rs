@@ -20,7 +20,7 @@ Add `plctag` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag= "0.2"
+plctag= "0.3"
 ```
 
 ## crates
@@ -36,8 +36,8 @@ plctag= "0.2"
 
 ### read/write tag
 
-```rust,ignore
-use plctag::{Encode, Decode, RawTag};
+```rust,no_run
+use plctag::{Encode, Decode, RawTag, ValueExt};
 let timeout = 100;//ms
 let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 let tag = RawTag::new(path, timeout).unwrap();
@@ -62,8 +62,8 @@ println!("write done!");
 
 read/write UDT
 
-```rust,ignore
-use plctag::{Decode, Encode, RawTag, Result};
+```rust,no_run
+use plctag::{Decode, Encode, RawTag, Result, ValueExt};
 
 // define your UDT
 #[derive(Default, Debug, Decode, Encode)]
@@ -102,23 +102,21 @@ Do not perform expensive operations when you derives `Decode` or `Encode`.
 
 ### Async
 
-```rust,ignore
-use plctag::futures::{AsyncTag, Error, TagEntry};
-
+```rust,no_run
+use plctag::futures::{Error, AsyncTag};
 use tokio::runtime;
 
 fn main() {
     let rt = runtime::Runtime::new().unwrap();
     let res: Result<_, Error> = rt.block_on(async {
         let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16"; // YOUR TAG DEFINITION
-        let tag = TagEntry::create(path).await?;
-        let tag_ref = tag.get().await?;
+        let mut tag = AsyncTag::create(path).await?;
         let offset = 0;
-        let value: u16 = tag_ref.read_value(offset).await?;
+        let value: u16 = tag.read_value(offset).await?;
         println!("tag value: {}", value);
 
         let value = value + 10;
-        tag_ref.write_value(offset, value).await?;
+        tag.write_value(offset, value).await?;
         Ok(())
     });
     res.unwrap();
@@ -128,7 +126,7 @@ fn main() {
 
 ### Path Builder
 
-```rust,ignore
+```rust,no_run
 use plctag::builder::*;
 use plctag::RawTag;
 
@@ -154,7 +152,7 @@ fn main() {
 
 ### Logging adapter for `libplctag`
 
-```rust,ignore
+```rust,no_run
 use plctag::log::log_adapt;
 use plctag::log::set_debug_level;
 use plctag::log::DebugLevel;
@@ -166,19 +164,9 @@ set_debug_level(DebugLevel::Info); // set debug level
 
 ```
 
-## Thread-safety
+## Build
 
-Operations are not thread-safe in this library except async wrappers, please use `std::sync::Mutex` or something similar to enforce thread-safety.
-
-## Build & Test
-
-Please refer to `How to use` to setup build environment.
-
-Because mutithread will cause troubles, you need to run tests with:
-
-```shell
-cargo test --all -- --test-threads=1
-```
+Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#build) to setup build environment.
 
 ## License
 
@@ -200,4 +188,4 @@ pub use plctag_log as log;
 pub use plctag_async as futures;
 
 #[cfg(feature = "async")]
-pub use plctag_async::TagEntry;
+pub use plctag_async::AsyncTag;

@@ -27,7 +27,7 @@ const TAG_DESTROYED: u8 = 3;
 
 /// tag entry, represents a tag in PLC controller
 #[derive(Debug)]
-pub struct TagEntry {
+pub struct AsyncTag {
     tag: RawTag,
     inner: Arc<Inner>,
     _guard: ArcGuard<Inner>,
@@ -140,8 +140,8 @@ impl<T> Drop for ArcGuard<T> {
 unsafe impl<T> Send for ArcGuard<T> {}
 unsafe impl<T> Sync for ArcGuard<T> {}
 
-impl TagEntry {
-    /// create instance of [`TagEntry`]
+impl AsyncTag {
+    /// create instance of [`AsyncTag`]
     pub async fn create<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
         extern "C" fn on_event(_tag: i32, event: i32, status: i32, user_data: *mut c_void) {
             match event {

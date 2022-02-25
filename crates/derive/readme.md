@@ -16,7 +16,7 @@ With this crate, the macros derive `plctag_core::Decode` and `plctag_core::Encod
 ### Examples
 
 ```rust
-use plctag_core::RawTag;
+use plctag_core::{RawTag, Result, ValueExt};
 use plctag_derive::{Decode, Encode};
 
 #[derive(Debug, Default, Decode, Encode)]

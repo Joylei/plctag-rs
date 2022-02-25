@@ -35,7 +35,7 @@ plctag-log= "0.1"
 
 ### Examples
 
-```rust,ignore
+```rust,no_run
 use plctag_log::*;
 
 log_adapt(); //register logger
@@ -113,8 +113,8 @@ unsafe extern "C" fn log_route(_tag_id: i32, level: i32, message: *const c_char)
 /// `libplctag` will print log messages to stdout even if you register your own logger by `register_logger`.
 ///
 /// # Examples
-/// ```rust,ignore
-/// use plctag::*
+/// ```rust,no_run
+/// use plctag_log::*;
 ///
 /// log_adapt(); //register logger
 /// set_debug_level(DebugLevel::Info); // set debug level

@@ -22,8 +22,8 @@ With this crate, the macros derive `plctag_core::Decode` and `plctag_core::Encod
 
 ### Examples
 
-```rust,ignore
-use plctag_core::RawTag;
+```rust,no_run
+use plctag_core::{RawTag, Result, ValueExt};
 use plctag_derive::{Decode, Encode};
 
 #[derive(Debug, Default, Decode, Encode)]
@@ -66,7 +66,7 @@ use syn::parse_macro_input;
 
 /// the macro derives `plctag_core::Decode` for you automatically.
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use plctag_core::RawTag;
 /// use plctag_derive::{Decode, Encode};
 ///
@@ -88,7 +88,7 @@ pub fn decode_derive(input: TokenStream) -> TokenStream {
 
 /// the macro derives `plctag_core::Encode` for you automatically.
 ///
-/// ```rust,ignore
+/// ```rust,no_run
 /// use plctag_core::RawTag;
 /// use plctag_derive::{Decode, Encode};
 ///

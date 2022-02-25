@@ -27,8 +27,8 @@ plctag-core= "0.1"
 
 ### read/write tag
 
-```rust,ignore
-use plctag_core::{Encode, Decode, RawTag};
+```rust,no_run
+use plctag_core::{Encode, Decode, RawTag, ValueExt};
 let timeout = 100;//ms
 let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";// YOUR TAG DEFINITION
 let tag = RawTag::new(path, timeout).unwrap();
@@ -53,19 +53,9 @@ println!("write done!");
 
 please take a look at [examples](../../examples/)
 
-## Thread-safety
+## Build
 
-Operations are not thread-safe in this library, please use `std::sync::Mutex` or something similar to enforce thread-safety.
-
-## Build & Test
-
-Please refer to `How to use` to setup build environment.
-
-Because mutithread will cause troubles, you need to run tests with:
-
-```shell
-cargo test -- --test-threads=1
-```
+Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#build) to setup build
 
 ## License
 

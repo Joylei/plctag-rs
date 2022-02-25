@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use plctag::{Decode, Encode, RawTag};
+use plctag::{RawTag, ValueExt};
 
 fn bench_read(c: &mut Criterion) {
     let timeout = 1000; //ms
