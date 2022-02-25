@@ -4,7 +4,7 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use plctag::{Decode, Encode, RawTag, Result};
+use plctag::{Decode, Encode, RawTag, Result, ValueExt};
 use std::{
     cmp,
     ops::{Deref, DerefMut},

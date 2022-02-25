@@ -74,12 +74,6 @@ MIT
 */
 #![warn(missing_docs)]
 
-#[cfg(feature = "event")]
-extern crate dyn_clone;
-#[cfg(feature = "event")]
-extern crate once_cell;
-#[cfg(feature = "event")]
-extern crate parking_lot;
 extern crate plctag_sys;
 
 /// reexports ffi Apis
@@ -100,4 +94,4 @@ pub use raw::RawTag;
 pub use status::Status;
 
 #[cfg(feature = "value")]
-pub use value::{Decode, Encode};
+pub use value::{Decode, Encode, ValueExt};

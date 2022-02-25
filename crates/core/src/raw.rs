@@ -528,20 +528,6 @@ impl RawTag {
         let rc = unsafe { ffi::plc_tag_abort(self.tag_id) };
         Status::new(rc).into_result()
     }
-
-    /// get tag value of `T` that derives [`Decode`]
-    #[cfg(feature = "value")]
-    #[inline]
-    pub fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
-        T::decode(self, byte_offset)
-    }
-
-    /// set tag value that derives [`Encode`]
-    #[cfg(feature = "value")]
-    #[inline]
-    pub fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
-        value.encode(self, byte_offset)
-    }
 }
 
 impl Drop for RawTag {

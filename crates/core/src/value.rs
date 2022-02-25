@@ -4,10 +4,9 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use std::borrow::Cow;
-
 use crate::{RawTag, Result};
 use paste::paste;
+use std::borrow::Cow;
 
 macro_rules! value_impl {
     ($type: ident) => {
@@ -173,26 +172,32 @@ impl<T: Encode + Clone> Encode for Cow<'_, T> {
     }
 }
 
+/// generic value getter/setter
 pub trait ValueExt {
+    /// get tag value of `T` that derives [`Decode`]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T>;
+    /// set tag value that derives [`Encode`]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()>;
 }
 
 impl ValueExt for RawTag {
+    #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
         T::decode(self, byte_offset)
     }
 
+    #[inline]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
         value.encode(self, byte_offset)
     }
 }
 
 impl<V: ValueExt> ValueExt for Box<V> {
+    #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
         (**self).get_value(byte_offset)
     }
-
+    #[inline]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
         (**self).set_value(byte_offset, value)
     }

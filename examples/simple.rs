@@ -4,7 +4,7 @@
 // Copyright: 2020-2021, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use plctag::RawTag;
+use plctag::{RawTag, ValueExt};
 
 fn main() {
     let timeout = 100; //ms

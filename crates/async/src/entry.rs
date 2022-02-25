@@ -320,6 +320,7 @@ impl TagEntry {
     #[inline]
     #[cfg(feature = "value")]
     pub fn get_value<T: Decode>(&mut self, byte_offset: u32) -> Result<T> {
+        use plctag_core::ValueExt;
         let v = self.tag.get_value(byte_offset)?;
         Ok(v)
     }
@@ -328,6 +329,7 @@ impl TagEntry {
     #[inline]
     #[cfg(feature = "value")]
     pub fn set_value<T: Encode>(&mut self, byte_offset: u32, value: T) -> Result<()> {
+        use plctag_core::ValueExt;
         self.tag.set_value(byte_offset, value)?;
         Ok(())
     }
@@ -336,6 +338,7 @@ impl TagEntry {
     #[inline]
     #[cfg(feature = "value")]
     pub async fn read_value<T: Decode>(&mut self, offset: u32) -> Result<T> {
+        use plctag_core::ValueExt;
         self.read().await?;
         //dbg!("read done", self.tag.status());
         Ok(self.tag.get_value(offset)?)
@@ -345,6 +348,7 @@ impl TagEntry {
     #[cfg(feature = "value")]
     #[inline]
     pub async fn write_value<T: Encode + Send>(&mut self, offset: u32, value: T) -> Result<()> {
+        use plctag_core::ValueExt;
         self.ready().await?;
         self.tag.set_value(offset, value)?;
         self.write().await?;
