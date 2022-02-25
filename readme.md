@@ -20,7 +20,7 @@ plctag= "0.2"
 
 - [plctag](https://crates.io/crates/plctag) reexports everything from below crates.
 - [plctag-core](https://crates.io/crates/plctag-core) a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions.
-- [plctag-async](https://crates.io/crates/plctag-async) tokio based async wrapper.
+- [plctag-async](https://crates.io/crates/plctag-async) async wrapper.
 - [plctag-log](https://crates.io/crates/plctag-log) log adapter for `libplctag`
 - [plctag-derive](https://crates.io/crates/plctag-derive) macros for `plctag`
 - [plctag-sys](https://crates.io/crates/plctag-sys) native libplctag binding
