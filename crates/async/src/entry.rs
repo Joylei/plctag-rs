@@ -325,8 +325,8 @@ impl AsyncTag {
     }
 
     /// set value in mem, you should call write() later
-    #[inline]
     #[cfg(feature = "value")]
+    #[inline]
     pub fn set_value<T: Encode>(&mut self, byte_offset: u32, value: T) -> Result<()> {
         use plctag_core::ValueExt;
         self.tag.set_value(byte_offset, value)?;
@@ -334,8 +334,8 @@ impl AsyncTag {
     }
 
     /// perform read & returns the value
-    #[inline]
     #[cfg(feature = "value")]
+    #[inline]
     pub async fn read_value<T: Decode>(&mut self, offset: u32) -> Result<T> {
         use plctag_core::ValueExt;
         self.read().await?;
@@ -363,6 +363,7 @@ impl AsyncTag {
 
     /// get raw bytes.
     /// If buffer length would exceed the end of the data in the tag data buffer, an out of bounds error is returned
+    #[inline]
     pub fn get_bytes_unchecked(&self, byte_offset: u32, buf: &mut [u8]) -> Result<usize> {
         Ok(self.tag.get_bytes_unchecked(byte_offset, buf)?)
     }
