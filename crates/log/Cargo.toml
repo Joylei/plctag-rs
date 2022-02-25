@@ -13,5 +13,7 @@ categories = ["api-bindings"]
 authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
-plctag-core = { path = "../core", version = "0.3", default-features = false }
+plctag-core = { path = "../core", version = "0.3", default-features = false, features = [
+    "builder",
+] }
 log = { version = "0.4", features = ["std"] }
