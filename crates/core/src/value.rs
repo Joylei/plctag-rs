@@ -116,7 +116,7 @@ pub trait Decode: Sized {
     }
 }
 
-/// see `Decode`
+/// see [`Decode`]
 pub trait Encode {
     /// set value at specified byte offset
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()>;

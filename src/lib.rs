@@ -62,7 +62,7 @@ println!("write done!");
 
 read/write UDT
 
-```rust,no_run
+```rust,ignore
 use plctag::{Decode, Encode, RawTag, Result, ValueExt};
 
 // define your UDT
