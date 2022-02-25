@@ -171,6 +171,34 @@ cargo bench
 
 The plots and saved data are stored under target/criterion/$BENCHMARK_NAME/
 
+### Bench Result
+
+Processor: Intel(R) Core(TM) i7-9700KF CPU @ 3.60GHz   3.60 GHz
+RAM: 64.0 GB
+
+```
+sync read               time:   [5.8721 ms 5.9099 ms 5.9585 ms]
+                        change: [+0.0881% +0.7138% +1.4994%] (p = 0.06 > 0.05)
+                        No change in performance detected.
+Found 8 outliers among 100 measurements (8.00%)
+  2 (2.00%) low severe
+  1 (1.00%) low mild
+
+async read              time:   [8.5650 ms 8.6148 ms 8.6786 ms]
+                        change: [-1.1842% -0.2853% +0.7350%] (p = 0.55 > 0.05)
+                        No change in performance detected.
+Found 7 outliers among 100 measurements (7.00%)
+  1 (1.00%) low severe
+
+
+async batch-20 read     time:   [18.205 ms 18.431 ms 18.676 ms]
+                        change: [-2.0615% -0.1733% +1.5987%] (p = 0.86 > 0.05)
+                        No change in performance detected.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+```
+
 ## License
 
 MIT
