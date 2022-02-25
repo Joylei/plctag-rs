@@ -30,8 +30,8 @@ impl RawTag {
     /// let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
     /// let tag = RawTag::new(path, timeout).unwrap();
     /// ```
-    pub fn new(path: impl AsRef<str>, timeout: u32) -> Result<Self> {
-        let path = CString::new(path.as_ref()).unwrap();
+    pub fn new<P: Into<Vec<u8>>>(path: P, timeout: u32) -> Result<Self> {
+        let path = CString::new(path).unwrap();
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };
         if tag_id < 0 {
             return Err(Status::new(tag_id));
@@ -40,15 +40,15 @@ impl RawTag {
     }
 
     /// create new [`RawTag`]
-    pub unsafe fn new_with_callback(
-        path: impl AsRef<str>,
+    pub unsafe fn new_with_callback<P: Into<Vec<u8>>>(
+        path: P,
         timeout: u32,
         cb: Option<
             unsafe extern "C" fn(tag_id: i32, event: i32, status: i32, user_data: *mut c_void),
         >,
         user_data: *mut c_void,
     ) -> Result<Self> {
-        let path = CString::new(path.as_ref()).unwrap();
+        let path = CString::new(path).unwrap();
         let tag_id = ffi::plc_tag_create_ex(path.as_ptr(), cb, user_data, timeout as i32);
         if tag_id < 0 {
             return Err(Status::new(tag_id));

@@ -142,7 +142,7 @@ unsafe impl<T> Sync for ArcGuard<T> {}
 
 impl TagEntry {
     /// create instance of [`TagEntry`]
-    pub async fn create(options: impl Into<String>) -> Result<Self> {
+    pub async fn create<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
         extern "C" fn on_event(_tag: i32, event: i32, status: i32, user_data: *mut c_void) {
             match event {
                 PLCTAG_EVENT_CREATED
@@ -159,7 +159,6 @@ impl TagEntry {
         }
 
         let inner = Arc::new(Inner::new());
-        let path = options.into();
         let guard = ArcGuard {
             ptr: Arc::into_raw(inner.clone()),
         };
@@ -382,7 +381,7 @@ impl TagEntry {
     }
 
     /// take the inner
-    pub fn into_inner(self) -> RawTag {
+    pub fn into_raw(self) -> RawTag {
         unsafe {
             self.tag.unregister_callback();
         }
