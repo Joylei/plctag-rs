@@ -17,7 +17,7 @@ default = ["value"]
 value = ["plctag-core/value"]
 
 [dependencies]
-plctag-core = { path = "../core", version = "0.3" }
+plctag-core = { path = "../core", version = "0.3", default-features = false }
 futures-util = "0.3"
 
 [dev-dependencies]

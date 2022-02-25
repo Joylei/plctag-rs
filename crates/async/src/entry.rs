@@ -9,7 +9,9 @@ use futures_util::{
     future::Future,
     task::{AtomicWaker, Context, Poll},
 };
-use plctag_core::{ffi::PLCTAG_ERR_NOT_FOUND, Decode, Encode};
+use plctag_core::ffi::PLCTAG_ERR_NOT_FOUND;
+#[cfg(feature = "value")]
+use plctag_core::{Decode, Encode};
 use std::{
     ffi::c_void,
     pin::Pin,
