@@ -4,7 +4,7 @@
 // Copyright: 2022, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use plctag_core::RawTag;
+use plctag_core::{RawTag, ValueExt};
 use plctag_derive::{Decode, Encode};
 
 #[derive(Debug, Default, Decode, Encode)]
