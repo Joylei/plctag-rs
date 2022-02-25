@@ -30,6 +30,10 @@ impl RawTag {
     /// let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.1.120&name=MyTag1&elem_count=1&elem_size=16";
     /// let tag = RawTag::new(path, timeout).unwrap();
     /// ```
+    ///
+    /// ## Tag String Attributes
+    /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
+    ///
     pub fn new<P: Into<Vec<u8>>>(path: P, timeout: u32) -> Result<Self> {
         let path = CString::new(path).unwrap();
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };

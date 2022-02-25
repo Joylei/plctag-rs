@@ -144,6 +144,9 @@ unsafe impl<T> Sync for ArcGuard<T> {}
 
 impl AsyncTag {
     /// create instance of [`AsyncTag`]
+    ///
+    /// ## Tag String Attributes
+    /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
     pub async fn create<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
         extern "C" fn on_event(_tag: i32, event: i32, status: i32, user_data: *mut c_void) {
             match event {
