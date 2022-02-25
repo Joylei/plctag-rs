@@ -23,3 +23,7 @@ Set environment variable `LIBPLCTAG_PATH` to the directory of extracted binaries
 ## Build from git submodules
 
 If environment variable `LIBPLCTAG_PATH` does not present, will build from git submodules [libplctag](https://github.com/libplctag/libplctag/).
+
+## Static build
+will check if static build in the order of:
+PLCTAG_STATIC, PLCTAG_DYNAMIC, rustflags: +crt-static
