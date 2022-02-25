@@ -14,7 +14,6 @@ authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
 plctag-sys = { path = "../sys", version = "0.3" }
-log = "0.4"
 paste = { version = "1", optional = true }
 
 [features]
