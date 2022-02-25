@@ -1,6 +1,6 @@
 [package]
 name = "plctag-log"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "log adapter for `libplctag`, one component of `plctag` rust bindings"
 readme = "README.md"
@@ -13,5 +13,5 @@ categories = ["api-bindings"]
 authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
-plctag-core = { path = "../core", version = "0.2" }
+plctag-core = { path = "../core", version = "0.3" }
 log = { version = "0.4", features = ["std"] }

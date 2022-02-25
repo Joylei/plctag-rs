@@ -1,6 +1,6 @@
 [package]
 name = "plctag"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 resolver = "2"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
@@ -25,10 +25,11 @@ path = "src/lib.rs"
 
 [features]
 default = ["full"]
-full = ["derive", "async", "log"]
+full = ["derive", "async", "value", "log"]
 log = ["plctag-log"]
 derive = ["plctag-derive"]
 async = ["plctag-async"]
+value = ["plctag-core/value", "plctag-async/value"]
 
 [workspace]
 members = [
@@ -41,13 +42,18 @@ members = [
 ]
 
 [dependencies]
-plctag-core = { path = "crates/core", version = "0.2" }
-plctag-async = { path = "crates/async", version = "0.2", optional = true }
+plctag-core = { path = "crates/core", version = "0.3" }
+plctag-async = { path = "crates/async", version = "0.3", optional = true }
 plctag-derive = { path = "crates/derive", version = "0.2", optional = true }
-plctag-log = { path = "crates/log", version = "0.2", optional = true }
+plctag-log = { path = "crates/log", version = "0.3", optional = true }
 
 [dev-dependencies]
-tokio = "1"
+tokio = { version = "1", default-features = false, features = [
+    "rt-multi-thread",
+    "time",
+    "sync",
+    "macros",
+] }
 anyhow = "1"
 futures = "0.3"
 criterion = { version = "0.3", features = [

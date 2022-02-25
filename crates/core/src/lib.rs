@@ -96,7 +96,7 @@ mod value;
 
 /// plctag result
 pub type Result<T> = std::result::Result<T, Status>;
-pub use raw::{RawTag, TagId};
+pub use raw::RawTag;
 pub use status::Status;
 
 #[cfg(feature = "value")]

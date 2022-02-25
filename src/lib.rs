@@ -198,3 +198,6 @@ pub use plctag_log as log;
 #[cfg(feature = "async")]
 #[doc(inline)]
 pub use plctag_async as futures;
+
+#[cfg(feature = "async")]
+pub use plctag_async::TagEntry;

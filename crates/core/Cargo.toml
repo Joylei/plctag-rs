@@ -1,6 +1,6 @@
 [package]
 name = "plctag-core"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2021"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
 readme = "README.md"
@@ -13,15 +13,10 @@ categories = ["api-bindings", "hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
-plctag-sys = { path = "../sys", version = "0.2" }
-
+plctag-sys = { path = "../sys", version = "0.3" }
 log = "0.4"
-parking_lot = { version = "0.12", optional = true }
 paste = { version = "1", optional = true }
-once_cell = { version = "1", optional = true }
-dyn-clone = { version = "1", optional = true }
 
 [features]
-default = ["value", "event"]
+default = ["value"]
 value = ["paste"]
-event = ["parking_lot", "once_cell", "dyn-clone"]

@@ -172,3 +172,28 @@ impl<T: Encode + Clone> Encode for Cow<'_, T> {
         T::encode(self, tag, offset)
     }
 }
+
+pub trait ValueExt {
+    fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T>;
+    fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()>;
+}
+
+impl ValueExt for RawTag {
+    fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
+        T::decode(self, byte_offset)
+    }
+
+    fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
+        value.encode(self, byte_offset)
+    }
+}
+
+impl<V: ValueExt> ValueExt for Box<V> {
+    fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
+        (**self).get_value(byte_offset)
+    }
+
+    fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
+        (**self).set_value(byte_offset, value)
+    }
+}

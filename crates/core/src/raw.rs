@@ -11,10 +11,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Tag Identifier
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TagId(pub(crate) i32);
-
 /// wrapper of tag model based on `libplctag`
 #[derive(Debug)]
 pub struct RawTag {
@@ -22,7 +18,7 @@ pub struct RawTag {
 }
 
 impl RawTag {
-    /// create new RawTag
+    /// create new [`RawTag`]
     /// # Note
     /// if you passed wrong path parameters, your program might crash.
     /// you might want to use `PathBuilder` to build a path.
@@ -43,7 +39,7 @@ impl RawTag {
         Ok(Self { tag_id })
     }
 
-    /// create new RawTag
+    /// create new [`RawTag`]
     pub unsafe fn new_with_callback(
         path: impl AsRef<str>,
         timeout: u32,
@@ -62,8 +58,8 @@ impl RawTag {
 
     /// tag id
     #[inline(always)]
-    pub fn id(&self) -> TagId {
-        TagId(self.tag_id)
+    pub fn id(&self) -> i32 {
+        self.tag_id
     }
 
     /// perform read operation.
@@ -516,7 +512,7 @@ impl RawTag {
         rc.into()
     }
 
-    #[cfg(not(feature = "event"))]
+    /// unregister the callback
     #[inline(always)]
     pub unsafe fn unregister_callback(&self) -> Status {
         let rc = ffi::plc_tag_unregister_callback(self.tag_id);
@@ -537,8 +533,7 @@ impl RawTag {
     #[cfg(feature = "value")]
     #[inline]
     pub fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
-        let v = T::decode(self, byte_offset)?;
-        Ok(v)
+        T::decode(self, byte_offset)
     }
 
     /// set tag value that derives [`Encode`]
