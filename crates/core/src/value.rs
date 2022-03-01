@@ -194,6 +194,18 @@ impl ValueExt for RawTag {
     }
 }
 
+impl<V: ValueExt> ValueExt for &V {
+    #[inline]
+    fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
+        V::get_value(&self, byte_offset)
+    }
+
+    #[inline]
+    fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
+        V::set_value(&self, byte_offset, value)
+    }
+}
+
 impl<V: ValueExt> ValueExt for Box<V> {
     #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
