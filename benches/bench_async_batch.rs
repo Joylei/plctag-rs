@@ -5,7 +5,7 @@ use tokio::{sync::Mutex, task};
 
 fn bench_read(c: &mut Criterion) {
     c.bench_function("async batch-20 read", |b| {
-        let rt = tokio::runtime::Builder::new_current_thread()
+        let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
             .unwrap();
