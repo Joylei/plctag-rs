@@ -6,7 +6,7 @@
 
 use crate::{RawTag, Result};
 use paste::paste;
-use std::borrow::Cow;
+use std::{borrow::Cow, marker::PhantomData, rc::Rc, sync::Arc};
 
 macro_rules! value_impl {
     ($type: ident) => {
@@ -174,6 +174,57 @@ impl<T: Encode + Clone> Encode for Cow<'_, T> {
     }
 }
 
+impl<T: Encode> Encode for Arc<T> {
+    #[inline]
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::encode(self, tag, offset)
+    }
+}
+
+impl<T: Encode> Encode for Rc<T> {
+    #[inline]
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::encode(self, tag, offset)
+    }
+}
+
+impl<T> Encode for PhantomData<T> {
+    #[inline]
+    fn encode(&self, _tag: &RawTag, _offset: u32) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl<T> Decode for PhantomData<T> {
+    #[inline]
+    fn decode(_tag: &RawTag, _offset: u32) -> Result<Self> {
+        Ok(Default::default())
+    }
+}
+
+impl<T: Encode> Encode for Box<T> {
+    #[inline]
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        T::encode(self, tag, offset)
+    }
+}
+
+impl<T: Decode> Decode for Box<T> {
+    #[inline]
+    fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
+        let v = T::decode(tag, offset)?;
+        Ok(Box::new(v))
+    }
+}
+
+impl Encode for &[u8] {
+    #[inline]
+    fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
+        let _ = tag.set_bytes(offset, self)?;
+        Ok(())
+    }
+}
+
 /// generic value getter/setter
 pub trait ValueExt {
     /// get tag value of `T` that derives [`Decode`]
@@ -197,12 +248,12 @@ impl ValueExt for RawTag {
 impl<V: ValueExt> ValueExt for &V {
     #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
-        V::get_value(&self, byte_offset)
+        V::get_value(self, byte_offset)
     }
 
     #[inline]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
-        V::set_value(&self, byte_offset, value)
+        V::set_value(self, byte_offset, value)
     }
 }
 
