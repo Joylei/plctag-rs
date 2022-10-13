@@ -110,6 +110,7 @@ pub trait Decode: Sized {
     fn decode(tag: &RawTag, offset: u32) -> Result<Self>;
 
     #[doc(hidden)]
+    #[inline]
     fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
         *place = Decode::decode(tag, offset)?;
         Ok(())
@@ -140,6 +141,19 @@ impl<T: Decode> Decode for Option<T> {
         let v = T::decode(tag, offset)?;
         Ok(Some(v))
     }
+
+    #[inline]
+    fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
+        match place {
+            Some(ref mut v) => {
+                T::decode_in_place(tag, offset, v)?;
+            }
+            None => {
+                *place = Some(T::decode(tag, offset)?);
+            }
+        }
+        Ok(())
+    }
 }
 
 impl<T: Encode> Encode for Option<T> {
@@ -165,6 +179,11 @@ impl<T: Decode + Clone> Decode for Cow<'_, T> {
         let v = T::decode(tag, offset)?;
         Ok(Cow::Owned(v))
     }
+    #[inline]
+    fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
+        let place = place.to_mut();
+        T::decode_in_place(tag, offset, place)
+    }
 }
 
 impl<T: Encode + Clone> Encode for Cow<'_, T> {
@@ -181,10 +200,44 @@ impl<T: Encode> Encode for Arc<T> {
     }
 }
 
+impl<T: Decode> Decode for Arc<T> {
+    #[inline]
+    fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
+        let v = T::decode(tag, offset)?;
+        Ok(Arc::new(v))
+    }
+    #[inline]
+    fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
+        if let Some(place) = Arc::get_mut(place) {
+            T::decode_in_place(tag, offset, place)?;
+        } else {
+            *place = Arc::new(T::decode(tag, offset)?);
+        }
+        Ok(())
+    }
+}
+
 impl<T: Encode> Encode for Rc<T> {
     #[inline]
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
         T::encode(self, tag, offset)
+    }
+}
+
+impl<T: Decode> Decode for Rc<T> {
+    #[inline]
+    fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
+        let v = T::decode(tag, offset)?;
+        Ok(Rc::new(v))
+    }
+    #[inline]
+    fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
+        if let Some(place) = Rc::get_mut(place) {
+            T::decode_in_place(tag, offset, place)?;
+        } else {
+            *place = Rc::new(T::decode(tag, offset)?);
+        }
+        Ok(())
     }
 }
 
@@ -215,6 +268,11 @@ impl<T: Decode> Decode for Box<T> {
         let v = T::decode(tag, offset)?;
         Ok(Box::new(v))
     }
+    #[inline]
+    fn decode_in_place(tag: &RawTag, offset: u32, place: &mut Self) -> Result<()> {
+        let place = place.as_mut();
+        T::decode_in_place(tag, offset, place)
+    }
 }
 
 impl Encode for &[u8] {
@@ -229,6 +287,14 @@ impl Encode for &[u8] {
 pub trait ValueExt {
     /// get tag value of `T` that derives [`Decode`]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T>;
+
+    /// get value in place
+    fn get_value_in_place<T: Decode>(&self, byte_offset: u32, value: &mut T) -> Result<()> {
+        let v = self.get_value(byte_offset)?;
+        *value = v;
+        Ok(())
+    }
+
     /// set tag value that derives [`Encode`]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()>;
 }
@@ -240,24 +306,29 @@ impl ValueExt for RawTag {
     }
 
     #[inline]
+    fn get_value_in_place<T: Decode>(&self, byte_offset: u32, value: &mut T) -> Result<()> {
+        T::decode_in_place(self, byte_offset, value)
+    }
+
+    #[inline]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
         value.encode(self, byte_offset)
     }
 }
 
-impl<V: ValueExt> ValueExt for &V {
+impl<Tag: ValueExt> ValueExt for &Tag {
     #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
-        V::get_value(self, byte_offset)
+        Tag::get_value(self, byte_offset)
     }
 
     #[inline]
     fn set_value<T: Encode>(&self, byte_offset: u32, value: T) -> Result<()> {
-        V::set_value(self, byte_offset, value)
+        Tag::set_value(self, byte_offset, value)
     }
 }
 
-impl<V: ValueExt> ValueExt for Box<V> {
+impl<Tag: ValueExt> ValueExt for Box<Tag> {
     #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
         (**self).get_value(byte_offset)

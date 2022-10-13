@@ -329,6 +329,15 @@ impl AsyncTag {
         Ok(v)
     }
 
+    /// get value from mem, you should call read() before this operation
+    #[inline]
+    #[cfg(feature = "value")]
+    pub fn get_value_in_place<T: Decode>(&mut self, byte_offset: u32, place: &mut T) -> Result<()> {
+        use plctag_core::ValueExt;
+        self.tag.get_value_in_place(byte_offset, place)?;
+        Ok(())
+    }
+
     /// set value in mem, you should call write() later
     #[cfg(feature = "value")]
     #[inline]
@@ -346,6 +355,21 @@ impl AsyncTag {
         self.read().await?;
         //dbg!("read done", self.tag.status());
         Ok(self.tag.get_value(offset)?)
+    }
+
+    /// perform read & returns the value
+    #[cfg(feature = "value")]
+    #[inline]
+    pub async fn read_value_in_place<T: Decode>(
+        &mut self,
+        offset: u32,
+        place: &mut T,
+    ) -> Result<()> {
+        use plctag_core::ValueExt;
+        self.read().await?;
+        //dbg!("read done", self.tag.status());
+        self.tag.get_value_in_place(offset, place)?;
+        Ok(())
     }
 
     /// set the value and write to PLC Controller

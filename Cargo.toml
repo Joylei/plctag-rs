@@ -43,9 +43,9 @@ members = [
 ]
 
 [dependencies]
-plctag-core = { path = "crates/core", version = "0.3", default-features = false }
-plctag-async = { path = "crates/async", version = "0.3", optional = true, default-features = false }
-plctag-derive = { path = "crates/derive", version = "0.2", optional = true }
+plctag-core = { path = "crates/core", version = "0.4", default-features = false }
+plctag-async = { path = "crates/async", version = "0.4", optional = true, default-features = false }
+plctag-derive = { path = "crates/derive", version = "0.3", optional = true }
 plctag-log = { path = "crates/log", version = "0.3", optional = true }
 
 [dev-dependencies]
