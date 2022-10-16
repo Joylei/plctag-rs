@@ -1,6 +1,6 @@
 [package]
 name = "plctag-core"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2018"
 description = "a rust wrapper of [libplctag](https://github.com/libplctag/libplctag), with rust style APIs and useful extensions"
 readme = "README.md"
@@ -8,15 +8,15 @@ license = "MIT"
 homepage = "https://github.com/Joylei/plctag-rs"
 repository = "https://github.com/Joylei/plctag-rs.git"
 documentation = "https://docs.rs/crate/plctag/"
-keywords = ["automation", "plc", "ethernet","modbus", "hardware"]
-categories = ["api-bindings","hardware-support"]
+keywords = ["automation", "plc", "ethernet", "modbus", "hardware"]
+categories = ["api-bindings", "hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
 plctag-sys = { path = "../sys", version = "0.2" }
 
 log = "0.4"
-parking_lot = { version = "0.11", optional = true }
+parking_lot = { version = "0.12", optional = true }
 paste = { version = "1", optional = true }
 once_cell = { version = "1", optional = true }
 dyn-clone = { version = "1", optional = true }

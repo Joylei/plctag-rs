@@ -1,6 +1,6 @@
 [package]
 name = "plctag-sys"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2018"
 description = "native libplctag binding"
 readme = "README.md"
@@ -8,14 +8,14 @@ license = "MIT"
 homepage = "https://github.com/Joylei/plctag-rs"
 repository = "https://github.com/Joylei/plctag-rs.git"
 documentation = "https://docs.rs/crate/plctag/"
-keywords = ["automation", "plc", "ethernet","modbus", "hardware"]
+keywords = ["automation", "plc", "ethernet", "modbus", "hardware"]
 categories = ["api-bindings", "hardware-support"]
 authors = ["joylei <leingliu@gmail.com>"]
 
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.59"
+bindgen = "0.60"
 cmake = "0.1"
 pkg-config = "0.3"
 fs_extra = "1.2.0"
