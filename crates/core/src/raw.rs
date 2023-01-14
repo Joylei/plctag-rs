@@ -188,9 +188,7 @@ impl RawTag {
     /// set bit value
     #[inline(always)]
     pub fn set_bit(&self, bit_offset: u32, value: bool) -> Result<()> {
-        let rc = unsafe {
-            ffi::plc_tag_set_bit(self.tag_id, bit_offset as i32, if value { 1 } else { 0 })
-        };
+        let rc = unsafe { ffi::plc_tag_set_bit(self.tag_id, bit_offset as i32, value as i32) };
         Status::new(rc).into_result()
     }
 
@@ -204,7 +202,7 @@ impl RawTag {
     /// set bool value
     #[inline(always)]
     pub fn set_bool(&self, byte_offset: u32, value: bool) -> Result<()> {
-        self.set_u8(byte_offset, if value { 1 } else { 0 })
+        self.set_u8(byte_offset, value as _)
     }
 
     /// get i8 value

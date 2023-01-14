@@ -41,8 +41,8 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
                 1 => get_tag_attr(attrs[0])?,
                 _ => {
                     let mut error =
-                        syn::Error::new_spanned(&attrs[1], "redundant `tag()` attribute");
-                    error.combine(syn::Error::new_spanned(&attrs[0], "note: first one here"));
+                        syn::Error::new_spanned(attrs[1], "redundant `tag()` attribute");
+                    error.combine(syn::Error::new_spanned(attrs[0], "note: first one here"));
                     return Err(error);
                 }
             };
