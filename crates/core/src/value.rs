@@ -5,8 +5,9 @@
 // License: MIT
 
 use crate::{RawTag, Result};
+use alloc::{borrow::Cow, rc::Rc, sync::Arc};
+use core::marker::PhantomData;
 use paste::paste;
-use std::{borrow::Cow, marker::PhantomData, rc::Rc, sync::Arc};
 
 macro_rules! value_impl {
     ($type: ident) => {

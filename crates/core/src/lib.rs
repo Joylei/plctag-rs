@@ -64,6 +64,7 @@ MIT
 */
 #![warn(missing_docs)]
 
+extern crate alloc;
 extern crate plctag_sys;
 
 /// reexports ffi Apis
