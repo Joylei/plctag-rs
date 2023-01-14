@@ -13,7 +13,7 @@ Add `plctag` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag= "0.3"
+plctag= "0.4"
 ```
 
 ## crates
