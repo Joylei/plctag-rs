@@ -23,8 +23,7 @@ const PLCTAG_EVENT_READ_COMPLETED: i32 = plctag_core::ffi::PLCTAG_EVENT_READ_COM
 const PLCTAG_EVENT_WRITE_COMPLETED: i32 = plctag_core::ffi::PLCTAG_EVENT_WRITE_COMPLETED as i32;
 const PLCTAG_EVENT_DESTROYED: i32 = plctag_core::ffi::PLCTAG_EVENT_DESTROYED as i32;
 
-const TAG_CRATED: u8 = 1;
-const TAG_FIRST_READ: u8 = 2;
+const TAG_CREATED: u8 = 1;
 const TAG_DESTROYED: u8 = 3;
 
 /// tag entry, represents a tag in PLC controller
@@ -73,24 +72,7 @@ impl Inner {
         match event {
             PLCTAG_EVENT_CREATED => {
                 //dbg!("TAG_CREATED");
-                self.state.store(TAG_CRATED, Ordering::Relaxed);
-            }
-            PLCTAG_EVENT_READ_COMPLETED => {
-                // somehow, the read completed event is not handled gracefully by libplctag;
-                // so hack it here, swallow the first read completed event;
-                // not sure if it's working for modbus?
-                if self
-                    .state
-                    .compare_exchange(
-                        TAG_CRATED,
-                        TAG_FIRST_READ,
-                        Ordering::AcqRel,
-                        Ordering::Relaxed,
-                    )
-                    .is_ok()
-                {
-                    return;
-                }
+                self.state.store(TAG_CREATED, Ordering::Relaxed);
             }
             PLCTAG_EVENT_DESTROYED => {
                 self.state.store(TAG_DESTROYED, Ordering::Relaxed);
@@ -191,7 +173,7 @@ impl AsyncTag {
                 TAG_DESTROYED => {
                     return Status::Err(PLCTAG_ERR_NOT_FOUND);
                 }
-                TAG_FIRST_READ => {
+                TAG_CREATED => {
                     let (evt, status) = self.inner.take_event();
                     if evt == event {
                         return Status::from(status);
@@ -213,7 +195,7 @@ impl AsyncTag {
                 TAG_DESTROYED => {
                     return Err(Status::Err(PLCTAG_ERR_NOT_FOUND).into());
                 }
-                TAG_CRATED | TAG_FIRST_READ => {
+                TAG_CREATED => {
                     return Ok(());
                 }
                 _ => {}
