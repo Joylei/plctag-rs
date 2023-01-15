@@ -20,7 +20,7 @@ Add `plctag-async` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag-async= "0.3"
+plctag-async= "0.4"
 ```
 
 ## Examples

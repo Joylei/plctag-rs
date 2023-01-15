@@ -20,7 +20,7 @@ Add `plctag-core` to your Cargo.toml
 
 ```toml
 [dependencies]
-plctag-core= "0.1"
+plctag-core= "0.4"
 ```
 
 ## Examples
