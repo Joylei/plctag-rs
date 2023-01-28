@@ -13,7 +13,7 @@ fn bench_read(c: &mut Criterion) {
             let mut tags = vec![];
             for i in 0..20 {
                 let options =  format!("protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.0.83&name=Car_Pos[{}]&elem_count=1", i);
-                let tag = AsyncTag::create(options).await.unwrap();
+                let tag = AsyncTag::new(options).unwrap();
                 tags.push(Arc::new(Mutex::new(tag)));
             };
             tags

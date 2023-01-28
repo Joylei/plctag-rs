@@ -8,11 +8,9 @@ fn bench_read(c: &mut Criterion) {
             .enable_all()
             .build()
             .unwrap();
-        let entry = rt.block_on(async {
             let path="protocol=ab-eip&plc=controllogix&path=1,0&gateway=192.168.0.83&name=Car_Pos[1]&elem_count=1";
-            let tag = AsyncTag::create(path).await.unwrap();
-            Arc::new(RefCell::new(tag))
-        });
+        let tag = AsyncTag::new(path).unwrap();
+        let entry = Arc::new(RefCell::new(tag));
         b.to_async(rt).iter_batched(
             || entry.clone(),
             |entry| async move {

@@ -129,7 +129,7 @@ impl AsyncTag {
     ///
     /// # Tag String Attributes
     /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
-    pub async fn create<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
+    pub fn new<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
         extern "C" fn on_event(_tag: i32, event: i32, status: i32, user_data: *mut c_void) {
             match event {
                 PLCTAG_EVENT_CREATED
@@ -162,6 +162,15 @@ impl AsyncTag {
             inner,
             _guard: guard,
         })
+    }
+
+    /// create instance of [`AsyncTag`]
+    ///
+    /// # Tag String Attributes
+    /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
+    #[deprecated = "do not need to be async, use new() instead"]
+    pub async fn create<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
+        Self::new(path)
     }
 
     /// wait until interested event is received
