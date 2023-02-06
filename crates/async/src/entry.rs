@@ -31,7 +31,6 @@ const TAG_DESTROYED: u8 = 3;
 pub struct AsyncTag {
     tag: RawTag,
     inner: Arc<Inner>,
-    _guard: ArcGuard<Inner>,
 }
 
 #[derive(Debug)]
@@ -107,23 +106,6 @@ impl Future for Notified<'_> {
     }
 }
 
-#[derive(Debug)]
-struct ArcGuard<T> {
-    ptr: *const T,
-}
-
-impl<T> Drop for ArcGuard<T> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            Arc::from_raw(self.ptr);
-        }
-    }
-}
-
-unsafe impl<T> Send for ArcGuard<T> {}
-unsafe impl<T> Sync for ArcGuard<T> {}
-
 impl AsyncTag {
     /// create instance of [`AsyncTag`]
     ///
@@ -137,8 +119,7 @@ impl AsyncTag {
                 | PLCTAG_EVENT_READ_COMPLETED
                 | PLCTAG_EVENT_WRITE_COMPLETED => unsafe {
                     let ptr = user_data as *const Inner;
-                    Arc::increment_strong_count(ptr);
-                    let inner = Arc::from_raw(ptr);
+                    let inner = &*ptr;
                     inner.set_event(event, status);
                 },
                 _ => {}
@@ -146,22 +127,15 @@ impl AsyncTag {
         }
 
         let inner = Arc::new(Inner::new());
-        let guard = ArcGuard {
-            ptr: Arc::into_raw(inner.clone()),
-        };
         let tag = {
-            let user_data = guard.ptr as *mut Inner as *mut c_void;
+            let user_data = Arc::as_ptr(&inner) as *mut Inner as *mut c_void;
             unsafe { RawTag::new_with_callback(path, 0, Some(on_event), user_data) }?
         };
         // workaround for created event not triggered
         // if !tag.status().is_pending() {
         //     inner.state.store(TAG_FIRST_READ, Ordering::Release);
         // }
-        Ok(Self {
-            tag,
-            inner,
-            _guard: guard,
-        })
+        Ok(Self { tag, inner })
     }
 
     /// create instance of [`AsyncTag`]
