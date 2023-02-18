@@ -415,7 +415,7 @@ impl RawTag {
             ffi::plc_tag_get_string(
                 self.tag_id,
                 byte_offset as i32,
-                buf.as_mut_ptr() as *mut ::std::os::raw::c_char,
+                buf.as_mut_ptr() as *mut ::core::ffi::c_char,
                 buf.len() as i32,
             )
         };
