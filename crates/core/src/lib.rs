@@ -22,6 +22,9 @@ Add `plctag-core` to your Cargo.toml
 [dependencies]
 plctag-core= "0.4"
 ```
+## No-std support
+
+The `plctag-core` crate has a Cargo feature named "std" that is enabled by default. In order to use the crate in a no_std context this feature needs to be disabled.
 
 ## Examples
 
@@ -62,8 +65,11 @@ Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/c
 MIT
 
 */
-#![warn(missing_docs)]
 
+#![warn(missing_docs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "std")]
 extern crate alloc;
 extern crate plctag_sys;
 
@@ -77,11 +83,13 @@ pub mod builder;
 mod debug;
 mod raw;
 mod status;
+mod str;
 #[cfg(feature = "value")]
 mod value;
 
 /// plctag result
-pub type Result<T> = std::result::Result<T, Status>;
+pub type Result<T> = core::result::Result<T, Status>;
+pub use crate::str::AString;
 pub use raw::RawTag;
 pub use status::Status;
 

@@ -17,6 +17,7 @@ plctag-sys = { path = "../sys", version = "0.3" }
 paste = { version = "1", optional = true }
 
 [features]
-default = ["value", "builder"]
+default = ["std", "value", "builder"]
 value = ["paste"]
 builder = []
+std = []

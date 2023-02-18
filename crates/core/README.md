@@ -16,6 +16,15 @@ Add `plctag-core` to your Cargo.toml
 plctag-core= "0.4"
 ```
 
+## No-std support
+
+The `plctag-core` crate has a Cargo feature named "std" that is enabled by default. In order to use the crate in a no_std context this feature needs to be disabled.
+
+```toml
+[dependencies]
+plctag-core = { version = "0.4", default-features = false }
+```
+
 ## Examples
 
 ### read/write tag

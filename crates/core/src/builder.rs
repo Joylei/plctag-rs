@@ -8,9 +8,9 @@
 
 pub use crate::debug::DebugLevel;
 use core::fmt;
-use core::fmt::Write;
+use private::Pattern;
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = core::result::Result<T, Error>;
 
 /// tag builder error
 #[derive(Debug)]
@@ -22,6 +22,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for Error {}
 
 impl From<fmt::Error> for Error {
@@ -59,7 +60,7 @@ impl From<fmt::Error> for Error {
 /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for more information.
 ///
 #[derive(Default, Debug)]
-pub struct PathBuilder {
+pub struct PathBuilder<'a> {
     protocol: Option<Protocol>,
     debug: Option<DebugLevel>,
     elem_count: Option<usize>,
@@ -68,15 +69,15 @@ pub struct PathBuilder {
     auto_sync_read_ms: Option<usize>,
     auto_sync_write_ms: Option<usize>,
     plc: Option<PlcKind>,
-    name: Option<String>,
-    path: Option<String>,
-    gateway: Option<String>,
+    name: Option<MaybePattern<'a>>,
+    path: Option<Pattern<'a>>,
+    gateway: Option<Pattern<'a>>,
     use_connected_msg: Option<bool>,
     allow_packing: Option<bool>,
     connection_group_id: Option<u16>,
 }
 
-impl PathBuilder {
+impl<'a> PathBuilder<'a> {
     /// generic attribute.
     /// defining the current debugging level.
     /// please use [`plc::set_debug_level`](../plc/fn.set_debug_level.html) instead.
@@ -139,8 +140,8 @@ impl PathBuilder {
     /// - ModBus
     /// Required IP address or host name and optional port
     /// This tells the library what host name or IP address to use for the PLC. Can have an optional port at the end, e.g. gateway=10.1.2.3:502 where the :502 part specifies the port.
-    pub fn gateway(&mut self, gateway: impl AsRef<str>) -> &mut Self {
-        self.gateway = Some(gateway.as_ref().to_owned());
+    pub fn gateway(&mut self, gateway: impl Into<Pattern<'a>>) -> &mut Self {
+        self.gateway = Some(gateway.into());
         self
     }
 
@@ -151,14 +152,14 @@ impl PathBuilder {
     /// The supported register type prefixes are co for coil, di for discrete inputs, hr for holding registers and ir for input registers. The type prefix must be present and the register number must be greater than or equal to zero and less than or equal to 65535. Modbus examples: co21 - coil 21, di22 - discrete input 22, hr66 - holding register 66, ir64000 - input register 64000.
     ///
     /// you might want to use `register()` instead of `name()` for Modbus
-    pub fn name(&mut self, name: impl AsRef<str>) -> &mut Self {
-        self.name = Some(name.as_ref().to_owned());
+    pub fn name(&mut self, name: impl Into<Pattern<'a>>) -> &mut Self {
+        self.name = Some(MaybePattern::Pattern(name.into()));
         self
     }
 
     /// set register for Modbus
     pub fn register(&mut self, reg: Register) -> &mut Self {
-        self.name = Some(format!("{}", reg));
+        self.name = Some(MaybePattern::Register(reg));
         self
     }
 
@@ -168,8 +169,8 @@ impl PathBuilder {
     /// - ModBus
     /// Required The server/unit ID. Must be an integer value between 0 and 255.
     /// Servers may support more than one unit or may bridge to other units.
-    pub fn path(&mut self, path: impl AsRef<str>) -> &mut Self {
-        self.path = Some(path.as_ref().to_owned());
+    pub fn path(&mut self, path: impl Into<Pattern<'a>>) -> &mut Self {
+        self.path = Some(path.into());
         self
     }
 
@@ -234,6 +235,7 @@ impl PathBuilder {
                 match self.path {
                     Some(ref path) => {
                         let _: u8 = path
+                            .as_str()
                             .parse()
                             .or(Err(Error("path is a number in range [0-255]")))?;
                     }
@@ -248,9 +250,16 @@ impl PathBuilder {
     }
 
     /// build full tag path
+    #[cfg(feature = "std")]
     pub fn build(&self) -> Result<String> {
-        self.check()?;
         let mut path_buf = String::new();
+        self.build_to(&mut path_buf)?;
+        Ok(path_buf)
+    }
+
+    /// build full tag path
+    pub fn build_to<T: fmt::Write>(&self, path_buf: &mut T) -> Result<()> {
+        self.check()?;
         let protocol = self.protocol.unwrap();
         write!(path_buf, "protocol={}", protocol)?;
 
@@ -278,7 +287,10 @@ impl PathBuilder {
             write!(path_buf, "&path={}", path)?;
         }
         if let Some(ref name) = self.name {
-            write!(path_buf, "&name={}", name)?;
+            match name {
+                MaybePattern::Pattern(s) => write!(path_buf, "&name={}", s)?,
+                MaybePattern::Register(r) => write!(path_buf, "&name={}", r)?,
+            }
         }
         if let Some(elem_count) = self.elem_count {
             write!(path_buf, "&elem_count={}", elem_count)?
@@ -308,12 +320,12 @@ impl PathBuilder {
             let level = debug as u8;
             write!(path_buf, "&debug={}", level)?;
         }
-        Ok(path_buf)
+        Ok(())
     }
 }
 
 /// library supported protocols
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Protocol {
     /// EIP protocol
     EIP,
@@ -331,6 +343,7 @@ impl fmt::Display for Protocol {
 }
 
 /// modbus supported register
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Register {
     /// coil registers
     Coil(u16),
@@ -340,6 +353,12 @@ pub enum Register {
     Holding(u16),
     /// input registers
     Input(u16),
+}
+
+#[derive(Debug)]
+enum MaybePattern<'a> {
+    Pattern(Pattern<'a>),
+    Register(Register),
 }
 
 impl fmt::Display for Register {
@@ -382,6 +401,101 @@ impl fmt::Display for PlcKind {
             PlcKind::Micro800 => write!(f, "micro800"),
             PlcKind::MicroLogix => write!(f, "micrologix"),
             PlcKind::Omron => write!(f, "omron-njnx"),
+        }
+    }
+}
+
+mod private {
+    use core::ffi::{c_char, CStr};
+    use core::fmt;
+    #[cfg(feature = "std")]
+    use std::{borrow::Cow, ffi::CString};
+
+    use crate::AString;
+
+    #[derive(Debug)]
+    pub enum Pattern<'a> {
+        #[cfg(feature = "std")]
+        Owned(String),
+        Ref(&'a str),
+        CString(AString<'a>),
+    }
+
+    impl Pattern<'_> {
+        pub fn as_str(&self) -> &str {
+            match self {
+                #[cfg(feature = "std")]
+                Self::Owned(s) => s.as_str(),
+                Self::Ref(s) => s,
+                Self::CString(s) => s.as_str(),
+            }
+        }
+    }
+
+    #[cfg(feature = "std")]
+    impl From<String> for Pattern<'_> {
+        fn from(value: String) -> Self {
+            Pattern::Owned(value)
+        }
+    }
+
+    #[cfg(feature = "std")]
+    impl<'a> From<Cow<'a, str>> for Pattern<'a> {
+        fn from(value: Cow<'a, str>) -> Self {
+            match value {
+                Cow::Owned(s) => Pattern::Owned(s),
+                Cow::Borrowed(s) => Pattern::Ref(s),
+            }
+        }
+    }
+
+    impl<'a> From<&'a str> for Pattern<'a> {
+        fn from(value: &'a str) -> Self {
+            Pattern::Ref(value)
+        }
+    }
+
+    impl<'a> From<AString<'a>> for Pattern<'a> {
+        fn from(value: AString<'a>) -> Self {
+            Pattern::CString(value)
+        }
+    }
+
+    #[cfg(feature = "std")]
+    impl From<CString> for Pattern<'_> {
+        fn from(value: CString) -> Self {
+            Pattern::CString(AString::CString(value))
+        }
+    }
+
+    impl<'a> From<&'a [u8]> for Pattern<'a> {
+        fn from(value: &'a [u8]) -> Self {
+            Pattern::CString(AString::from(value))
+        }
+    }
+
+    impl<'a, const N: usize> From<&'a [u8; N]> for Pattern<'a> {
+        fn from(value: &'a [u8; N]) -> Self {
+            Pattern::CString(AString::from(value))
+        }
+    }
+
+    impl<'a> From<&'a CStr> for Pattern<'a> {
+        fn from(value: &'a CStr) -> Self {
+            Pattern::CString(AString::CStr(value))
+        }
+    }
+
+    impl From<*const c_char> for Pattern<'_> {
+        fn from(value: *const c_char) -> Self {
+            Pattern::CString(AString::from(value))
+        }
+    }
+
+    impl fmt::Display for Pattern<'_> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let s = self.as_str();
+            write!(f, "{}", s)
         }
     }
 }

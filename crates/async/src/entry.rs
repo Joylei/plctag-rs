@@ -9,7 +9,7 @@ use futures_util::{
     future::Future,
     task::{AtomicWaker, Context, Poll},
 };
-use plctag_core::ffi::PLCTAG_ERR_NOT_FOUND;
+use plctag_core::{ffi::PLCTAG_ERR_NOT_FOUND, AString};
 #[cfg(feature = "value")]
 use plctag_core::{Decode, Encode};
 use std::{
@@ -111,7 +111,7 @@ impl AsyncTag {
     ///
     /// # Tag String Attributes
     /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
-    pub fn new<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
+    pub fn new<'a>(path: impl Into<AString<'a>>) -> Result<Self> {
         extern "C" fn on_event(_tag: i32, event: i32, status: i32, user_data: *mut c_void) {
             match event {
                 PLCTAG_EVENT_CREATED
@@ -143,7 +143,7 @@ impl AsyncTag {
     /// # Tag String Attributes
     /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
     #[deprecated = "do not need to be async, use new() instead"]
-    pub async fn create<P: Into<Vec<u8>>>(path: P) -> Result<Self> {
+    pub async fn create<'a>(path: impl Into<AString<'a>>) -> Result<Self> {
         Self::new(path)
     }
 
@@ -239,13 +239,17 @@ impl AsyncTag {
 
     /// get tag attribute
     #[inline]
-    pub fn get_attr(&mut self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
+    pub fn get_attr<'a>(
+        &mut self,
+        attr: impl Into<AString<'a>>,
+        default_value: i32,
+    ) -> Result<i32> {
         Ok(self.tag.get_attr(attr, default_value)?)
     }
 
     /// set tag attribute
     #[inline]
-    pub fn set_attr(&mut self, attr: impl AsRef<str>, value: i32) -> Result<()> {
+    pub fn set_attr<'a>(&mut self, attr: impl Into<AString<'a>>, value: i32) -> Result<()> {
         Ok(self.tag.set_attr(attr, value)?)
     }
 

@@ -57,9 +57,9 @@ extern crate log;
 
 pub use plctag_core::builder::DebugLevel;
 
+use core::ffi::c_char;
+use core::ffi::CStr;
 use plctag_core::ffi;
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
 
 /// set debug level of `libplctag`
 ///
@@ -74,7 +74,10 @@ pub fn set_debug_level(debug: DebugLevel) {
 /// retrieve debug level
 #[inline(always)]
 pub fn get_debug_level() -> DebugLevel {
-    let v = get_int_attr("debug");
+    let v = unsafe {
+        let attr = CStr::from_bytes_with_nul_unchecked(b"debug\0");
+        ffi::plc_tag_get_int_attribute(0, attr.as_ptr(), 0)
+    };
     (v as u8).into()
 }
 
@@ -84,12 +87,6 @@ pub fn get_debug_level() -> DebugLevel {
 /// `libplctag` will print logs to stdout even if you register your own logger by `register_logger`
 pub use ffi::plc_tag_register_logger as register_logger;
 pub use ffi::plc_tag_unregister_logger as unregister_logger;
-
-#[inline(always)]
-fn get_int_attr(attr: &str) -> i32 {
-    let attr = CString::new(attr).unwrap();
-    unsafe { ffi::plc_tag_get_int_attribute(0, attr.as_ptr(), 0) }
-}
 
 #[doc(hidden)]
 unsafe extern "C" fn log_route(_tag_id: i32, level: i32, message: *const c_char) {

@@ -5,8 +5,7 @@
 // License: MIT
 
 use crate::{ffi, Result};
-use std::ffi::CStr;
-use std::fmt;
+use core::{ffi::CStr, fmt};
 
 pub const PLCTAG_STATUS_OK: i32 = ffi::PLCTAG_STATUS_OK as i32;
 pub const PLCTAG_STATUS_PENDING: i32 = ffi::PLCTAG_STATUS_PENDING as i32;
@@ -82,14 +81,18 @@ impl Status {
     /// let msg = status.decode();
     /// assert_eq!(msg, "PLCTAG_STATUS_OK");
     /// ```
-    #[inline]
+    #[cfg(feature = "std")]
+    #[deprecated = "use macro format! instead"]
     pub fn decode(&self) -> String {
-        let rc = (*self).into();
+        self.decode_str().to_string()
+    }
 
+    fn decode_str(&self) -> &str {
+        let rc = (*self).into();
         unsafe {
             let ptr = ffi::plc_tag_decode_error(rc);
             let msg = CStr::from_ptr(ptr);
-            msg.to_string_lossy().to_string()
+            msg.to_str().unwrap_or_default()
         }
     }
 }
@@ -115,14 +118,14 @@ impl From<Status> for i32 {
 impl fmt::Display for Status {
     #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.decode())
+        write!(f, "{}", self.decode_str())
     }
 }
 
 impl fmt::Debug for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let rc: i32 = (*self).into();
-        write!(f, "STATUS {}: {}", &rc, self.decode())
+        write!(f, "STATUS {}: {}", &rc, self.decode_str())
     }
 }
 
@@ -133,14 +136,14 @@ mod tests {
     #[test]
     fn test_status_ok() {
         let status = Status::Ok;
-        let msg = status.decode();
+        let msg = format!("{}", status);
         assert_eq!(msg, "PLCTAG_STATUS_OK");
     }
 
     #[test]
     fn test_status_pending() {
         let status = Status::Pending;
-        let msg = status.decode();
+        let msg = format!("{}", status);
         assert_eq!(msg, "PLCTAG_STATUS_PENDING");
     }
 }

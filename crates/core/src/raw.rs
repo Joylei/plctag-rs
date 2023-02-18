@@ -5,8 +5,9 @@
 // License: MIT
 
 use crate::*;
+use core::{cmp, ffi::c_void};
+#[cfg(feature = "std")]
 use std::{
-    ffi::{c_void, CString},
     thread,
     time::{Duration, Instant},
 };
@@ -35,8 +36,8 @@ impl RawTag {
     /// # Tag String Attributes
     /// See https://github.com/libplctag/libplctag/wiki/Tag-String-Attributes for tag string attributes.
     ///
-    pub fn new<P: Into<Vec<u8>>>(path: P, timeout: u32) -> Result<Self> {
-        let path = CString::new(path).unwrap();
+    pub fn new<'a>(path: impl Into<AString<'a>>, timeout: u32) -> Result<Self> {
+        let path = path.into();
         let tag_id = unsafe { ffi::plc_tag_create(path.as_ptr(), timeout as i32) };
         if tag_id < 0 {
             return Err(Status::new(tag_id));
@@ -52,15 +53,15 @@ impl RawTag {
     /// # Safety
     /// please keep the callback and user data alive before tag drops.
     /// you might call [`RawTag::unregister_callback`] to unregister the callback.
-    pub unsafe fn new_with_callback<P: Into<Vec<u8>>>(
-        path: P,
+    pub unsafe fn new_with_callback<'a>(
+        path: impl Into<AString<'a>>,
         timeout: u32,
         cb: Option<
             unsafe extern "C" fn(tag_id: i32, event: i32, status: i32, user_data: *mut c_void),
         >,
         user_data: *mut c_void,
     ) -> Result<Self> {
-        let path = CString::new(path).unwrap();
+        let path = path.into();
         let tag_id = ffi::plc_tag_create_ex(path.as_ptr(), cb, user_data, timeout as i32);
         if tag_id < 0 {
             return Err(Status::new(tag_id));
@@ -96,6 +97,7 @@ impl RawTag {
     /// # Note
     /// only for simple use cases
     #[inline]
+    #[cfg(feature = "std")]
     pub fn wait(&self, timeout: Option<Duration>) -> Status {
         let start = Instant::now();
         loop {
@@ -117,19 +119,19 @@ impl RawTag {
     /// element size
     #[inline(always)]
     pub fn elem_size(&self) -> Result<i32> {
-        self.get_attr("elem_size", 0)
+        self.get_attr(b"elem_size\0", 0)
     }
 
     /// element count
     #[inline(always)]
     pub fn elem_count(&self) -> Result<i32> {
-        self.get_attr("elem_count", 0)
+        self.get_attr(b"elem_count\0", 0)
     }
 
     /// get tag attribute
     #[inline(always)]
-    pub fn get_attr(&self, attr: impl AsRef<str>, default_value: i32) -> Result<i32> {
-        let attr = CString::new(attr.as_ref()).unwrap();
+    pub fn get_attr<'a>(&self, attr: impl Into<AString<'a>>, default_value: i32) -> Result<i32> {
+        let attr = attr.into();
         let val =
             unsafe { ffi::plc_tag_get_int_attribute(self.tag_id, attr.as_ptr(), default_value) };
         if val == i32::MIN {
@@ -141,8 +143,8 @@ impl RawTag {
 
     /// set tag attribute
     #[inline(always)]
-    pub fn set_attr(&self, attr: impl AsRef<str>, value: i32) -> Result<()> {
-        let attr = CString::new(attr.as_ref()).unwrap();
+    pub fn set_attr<'a>(&self, attr: impl Into<AString<'a>>, value: i32) -> Result<()> {
+        let attr = attr.into();
         let rc = unsafe { ffi::plc_tag_set_int_attribute(self.tag_id, attr.as_ptr(), value) };
         Status::new(rc).into_result()
     }
@@ -425,8 +427,8 @@ impl RawTag {
     /// Write A String
     /// NOTE: panic if buf terminates with 0 byte
     #[inline(always)]
-    pub fn set_string(&self, byte_offset: u32, buf: impl Into<Vec<u8>>) -> Result<()> {
-        let buf = CString::new(buf).unwrap();
+    pub fn set_string<'a>(&self, byte_offset: u32, buf: impl Into<AString<'a>>) -> Result<()> {
+        let buf = buf.into();
         let rc = unsafe { ffi::plc_tag_set_string(self.tag_id, byte_offset as i32, buf.as_ptr()) };
         Status::new(rc).into_result()
     }
@@ -458,7 +460,7 @@ impl RawTag {
             return Ok(0);
         }
         let slots_len = size - byte_offset as usize;
-        let buf_len = std::cmp::min(slots_len, buf.len());
+        let buf_len = cmp::min(slots_len, buf.len());
         let buf = &mut buf[..buf_len];
         self.get_bytes_unchecked(byte_offset, buf)
     }
@@ -490,7 +492,7 @@ impl RawTag {
             return Ok(0);
         }
         let slots_len = size - byte_offset as usize;
-        let buf_len = std::cmp::min(slots_len, buf.len());
+        let buf_len = cmp::min(slots_len, buf.len());
         let buf = &buf[..buf_len];
         self.set_bytes_unchecked(byte_offset, buf)
     }

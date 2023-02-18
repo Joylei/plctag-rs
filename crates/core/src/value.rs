@@ -5,6 +5,7 @@
 // License: MIT
 
 use crate::{RawTag, Result};
+#[cfg(feature = "std")]
 use alloc::{borrow::Cow, rc::Rc, sync::Arc};
 use core::marker::PhantomData;
 use paste::paste;
@@ -174,6 +175,7 @@ impl<T: Encode> Encode for &T {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Decode + Clone> Decode for Cow<'_, T> {
     #[inline]
     fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
@@ -187,6 +189,7 @@ impl<T: Decode + Clone> Decode for Cow<'_, T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Encode + Clone> Encode for Cow<'_, T> {
     #[inline]
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
@@ -194,6 +197,7 @@ impl<T: Encode + Clone> Encode for Cow<'_, T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Encode> Encode for Arc<T> {
     #[inline]
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
@@ -201,6 +205,7 @@ impl<T: Encode> Encode for Arc<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Decode> Decode for Arc<T> {
     #[inline]
     fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
@@ -218,6 +223,7 @@ impl<T: Decode> Decode for Arc<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Encode> Encode for Rc<T> {
     #[inline]
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
@@ -225,6 +231,7 @@ impl<T: Encode> Encode for Rc<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Decode> Decode for Rc<T> {
     #[inline]
     fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
@@ -256,6 +263,7 @@ impl<T> Decode for PhantomData<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Encode> Encode for Box<T> {
     #[inline]
     fn encode(&self, tag: &RawTag, offset: u32) -> Result<()> {
@@ -263,6 +271,7 @@ impl<T: Encode> Encode for Box<T> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<T: Decode> Decode for Box<T> {
     #[inline]
     fn decode(tag: &RawTag, offset: u32) -> Result<Self> {
@@ -329,6 +338,7 @@ impl<Tag: ValueExt> ValueExt for &Tag {
     }
 }
 
+#[cfg(feature = "std")]
 impl<Tag: ValueExt> ValueExt for Box<Tag> {
     #[inline]
     fn get_value<T: Decode>(&self, byte_offset: u32) -> Result<T> {
