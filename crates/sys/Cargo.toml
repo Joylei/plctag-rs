@@ -1,6 +1,6 @@
 [package]
 name = "plctag-sys"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 description = "native libplctag binding"
 readme = "README.md"
@@ -18,4 +18,3 @@ authors = ["joylei <leingliu@gmail.com>"]
 bindgen = "0.65"
 cmake = "0.1"
 pkg-config = "0.3"
-fs_extra = "1.2.0"

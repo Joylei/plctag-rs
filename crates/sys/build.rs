@@ -8,11 +8,10 @@ extern crate bindgen;
 extern crate cmake;
 extern crate pkg_config;
 
-use fs_extra::dir::CopyOptions;
 use std::{
     env,
     ffi::OsStr,
-    fs,
+    fs, io,
     path::{Component, Path, PathBuf},
 };
 
@@ -29,20 +28,11 @@ fn main() {
         (lib_path, header_file)
     } else {
         let source_dir = {
-            let source_dir: PathBuf = "libplctag".into();
-
+            let source_dir = "libplctag";
             // fix publish issue: Build scripts should not modify anything outside of OUT_DIR
-            let dst_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-            fs_extra::dir::copy(
-                source_dir,
-                &dst_dir,
-                &CopyOptions {
-                    overwrite: true,
-                    ..CopyOptions::new()
-                },
-            )
-            .expect("failed to copy libplctag to OUT_DIR");
-            dst_dir.join("libplctag")
+            let dst_dir = PathBuf::from(env::var("OUT_DIR").unwrap()).join("libplctag");
+            dir_copy(source_dir, &dst_dir).expect("failed to copy libplctag to OUT_DIR");
+            dst_dir
         };
         let mut config = cmake::Config::new(&source_dir);
         // do not build examples
@@ -77,7 +67,6 @@ fn main() {
         .allowlist_var("PLCTAG_.*")
         .allowlist_function("plc_tag_.*")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .rustfmt_bindings(true)
         .generate()
         .expect("Unable to generate bindings");
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -149,4 +138,38 @@ fn get_env_bool(key: &str) -> Option<bool> {
         let v = v.to_lowercase();
         v == "1" || v == "true" || v == "on" || v == "yes"
     })
+}
+
+fn dir_copy(source_dir: impl AsRef<Path>, dst_dir: impl AsRef<Path>) -> io::Result<()> {
+    let source_dir = source_dir.as_ref();
+    let dst_dir = dst_dir.as_ref();
+    if !source_dir.exists() {
+        return Ok(());
+    }
+    if !dst_dir.exists() {
+        fs::create_dir(dst_dir)?;
+        fs::set_permissions(dst_dir, source_dir.metadata()?.permissions())?;
+    }
+    //eprintln!("cp src: {}", source_dir.display());
+    //eprintln!("cp dst: {}", dst_dir.display());
+    for entry in source_dir.read_dir()? {
+        if let Ok(entry) = entry {
+            if let Ok(meta) = entry.metadata() {
+                let name = entry.file_name();
+                if name.to_string_lossy().starts_with(".") {
+                    continue;
+                }
+                let dst = dst_dir.join(name);
+                //eprintln!("{}", dst.display());
+
+                if meta.is_dir() {
+                    dir_copy(entry.path(), dst)?;
+                } else {
+                    fs::copy(entry.path(), dst)?;
+                }
+            }
+        }
+    }
+
+    Ok(())
 }
