@@ -4,22 +4,31 @@
 // Copyright: 2022, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use crate::shared::{get_crate, get_fields};
+use crate::shared::{get_crate, get_fields, Context};
 use proc_macro2::TokenStream;
 use proc_quote::quote;
 use syn::{DeriveInput, Index};
 
 pub fn expand_tag_derive(input: DeriveInput) -> syn::Result<TokenStream> {
+    let ctx = Context { is_encode: true };
     let plctag = get_crate()?;
-    let items = get_fields(input.data)?;
+    let items = get_fields(input.data, &ctx)?;
 
     let sets = items
         .iter()
-        .map(|(field_name, _ty, i)| {
-            let index = Index::from(i.offset as usize);
-            Ok(quote! {
-                #plctag::Encode::encode(&self.#field_name, tag, offset + #index)?;
-            })
+        .map(|(field_name, _ty, attr)| {
+            let ts = match attr.encode_fn {
+                Some(ref f) => quote! {
+                    #f(&self.#field_name, tag, offset)?;
+                },
+                None => {
+                    let index = Index::from(attr.offset.unwrap() as usize);
+                    quote! {
+                        #plctag::Encode::encode(&self.#field_name, tag, offset + #index)?;
+                    }
+                }
+            };
+            Ok(ts)
         })
         .collect::<syn::Result<TokenStream>>()?;
 

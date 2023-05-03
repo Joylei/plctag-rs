@@ -4,32 +4,31 @@
 // Copyright: 2022, Joylei <leingliu@gmail.com>
 // License: MIT
 
-use crate::shared::{get_crate, get_fields};
+use crate::shared::{get_crate, get_fields, Context};
 use proc_macro2::TokenStream;
 use proc_quote::quote;
 use syn::{DeriveInput, Index};
 
 pub fn expand_tag_derive(input: DeriveInput) -> syn::Result<TokenStream> {
+    let ctx = Context { is_encode: false };
     let plctag = get_crate()?;
-    let items = get_fields(input.data)?;
+    let items = get_fields(input.data, &ctx)?;
 
     let sets = items
         .iter()
-        .map(|(field_name, ty, i)| {
-            let index = Index::from(i.offset as usize);
-            Ok(quote! {
-                res.#field_name = #ty::decode(tag, offset + #index)?;
-            })
-        })
-        .collect::<syn::Result<TokenStream>>()?;
-
-    let sets_in_place = items
-        .iter()
-        .map(|(field_name, ty, i)| {
-            let index = Index::from(i.offset as usize);
-            Ok(quote! {
-                 #ty::decode_in_place(tag, offset + #index, &mut res.#field_name)?;
-            })
+        .map(|(field_name, ty, attr)| {
+            let ts = match attr.decode_fn {
+                Some(ref f) => quote! {
+                    res.#field_name =  #f(tag, offset)?;
+                },
+                None => {
+                    let index = Index::from(attr.offset.unwrap() as usize);
+                    quote! {
+                        res.#field_name = #ty::decode(tag, offset + #index)?;
+                    }
+                }
+            };
+            Ok(ts)
         })
         .collect::<syn::Result<TokenStream>>()?;
 
@@ -42,14 +41,9 @@ pub fn expand_tag_derive(input: DeriveInput) -> syn::Result<TokenStream> {
             fn decode(tag: &#plctag::RawTag, offset: u32) -> #plctag::Result<Self>{
                 use #plctag::Decode;
 
-                let mut res = Self::default();
+                let mut res = <Self as Default>::default();
                 #sets
                 Ok(res)
-            }
-            fn decode_in_place(tag: &#plctag::RawTag, offset: u32, res: &mut Self) -> #plctag::Result<()>{
-                use #plctag::Decode;
-                #sets_in_place
-                Ok(())
             }
         }
     })

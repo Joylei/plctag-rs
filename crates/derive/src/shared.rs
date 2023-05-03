@@ -19,7 +19,7 @@ pub fn get_crate() -> syn::Result<Ident> {
     Ok(plctag)
 }
 
-pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
+pub fn get_fields(data: Data, ctx: &Context) -> syn::Result<Vec<(Ident, Type, TagAttr)>> {
     let fields = match data {
         Data::Struct(DataStruct {
             fields: Fields::Named(fields),
@@ -38,7 +38,7 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
             assert!(!attrs.is_empty());
             let offset = match attrs.len() {
                 0 => return Ok(None),
-                1 => get_tag_attr(attrs[0])?,
+                1 => get_tag_attr(attrs[0], ctx)?,
                 _ => {
                     let mut error =
                         syn::Error::new_spanned(attrs[1], "redundant `tag()` attribute");
@@ -63,7 +63,7 @@ pub fn get_fields(data: Data) -> syn::Result<Vec<(Ident, Type, TagInfo)>> {
     Ok(items)
 }
 
-fn get_tag_attr(attr: &Attribute) -> syn::Result<TagInfo> {
+fn get_tag_attr(attr: &Attribute, ctx: &Context) -> syn::Result<TagAttr> {
     let meta = attr.parse_meta()?;
     //tag()
     let meta_list = match meta {
@@ -76,19 +76,11 @@ fn get_tag_attr(attr: &Attribute) -> syn::Result<TagInfo> {
         }
     };
 
-    //extract nested from tag(nested)
-    let nested = match meta_list.nested.len() {
-        1 => &meta_list.nested,
-        _ => {
-            return Err(syn::Error::new_spanned(
-                meta_list.nested,
-                "currently only a single tag attribute is supported",
-            ));
-        }
-    };
-
+    let nested = &meta_list.nested;
     let mut offset = None;
     let mut size = None;
+    let mut encode_fn = None;
+    let mut decode_fn = None;
     for item in nested {
         let name_value = match item {
             NestedMeta::Meta(Meta::NameValue(nv)) => nv,
@@ -123,29 +115,70 @@ fn get_tag_attr(attr: &Attribute) -> syn::Result<TagInfo> {
                 }
                 lit => return Err(syn::Error::new_spanned(lit, "expected int literal")),
             }
+        } else if name_value.path.is_ident("encode_fn") {
+            match &name_value.lit {
+                Lit::Str(s) => {
+                    if encode_fn.is_some() {
+                        return Err(syn::Error::new_spanned(
+                            s,
+                            "redundant definition for encode_fn",
+                        ));
+                    }
+                    let expr: syn::ExprPath = s.parse()?;
+                    encode_fn = Some(expr);
+                }
+                lit => return Err(syn::Error::new_spanned(lit, "expected Str literal")),
+            }
+        } else if name_value.path.is_ident("decode_fn") {
+            match &name_value.lit {
+                Lit::Str(s) => {
+                    if decode_fn.is_some() {
+                        return Err(syn::Error::new_spanned(
+                            s,
+                            "redundant definition for decode_fn",
+                        ));
+                    }
+                    let expr: syn::ExprPath = s.parse()?;
+                    decode_fn = Some(expr);
+                }
+                lit => return Err(syn::Error::new_spanned(lit, "expected Str literal")),
+            }
         } else {
             // Could also silently ignore the unexpected attribute by returning `Ok(None)`
             return Err(syn::Error::new_spanned(
                 &name_value.path,
-                "unsupported tag attribute, expected `offset` or `size`",
+                "unknown tag attribute",
             ));
         }
     }
 
-    if offset.is_none() {
+    if ctx.is_encode && encode_fn.is_none() && offset.is_none() {
         return Err(syn::Error::new_spanned(
             &meta_list.path,
-            "tag attribute `offset` is required",
+            "at least one of tag attribute `offset`, `encode_fn` is required",
+        ));
+    } else if !ctx.is_encode && decode_fn.is_none() && offset.is_none() {
+        return Err(syn::Error::new_spanned(
+            &meta_list.path,
+            "at least one of tag attribute `offset`, `decode_fn` is required",
         ));
     }
 
-    Ok(TagInfo {
-        offset: offset.unwrap(),
+    Ok(TagAttr {
+        offset,
         size,
+        encode_fn,
+        decode_fn,
     })
 }
 
-pub struct TagInfo {
-    pub offset: u32,
+pub struct TagAttr {
+    pub offset: Option<u32>,
     pub size: Option<u32>,
+    pub encode_fn: Option<syn::ExprPath>,
+    pub decode_fn: Option<syn::ExprPath>,
+}
+
+pub struct Context {
+    pub is_encode: bool,
 }

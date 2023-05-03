@@ -32,8 +32,17 @@ struct MyUDT {
     a: u32,
     #[tag(offset=4)]
     b: u32,
+    #[tag(decode_fn="my_decode", encode_fn="my_encode")]
+    c: u32,
+ }
+
+fn my_decode(tag:&RawTag, offset: u32)->plctag::Result<u32> {
+    tag.get_u32(offset + 8).map(|v|v+1)
 }
 
+fn my_encode(v: &u32, tag: &RawTag, offset: u32)->plctag::Result<()> {
+    tag.set_u32(offset + 8, *v - 1)
+}
 
 let tag = RawTag::new("make=system&family=library&name=debug&debug=4", 100).unwrap();
 let res = tag.read(100);
@@ -74,6 +83,12 @@ use syn::parse_macro_input;
 ///    a: u32,
 ///    #[tag(offset=4)]
 ///    b: u32,
+///    #[tag(decode_fn="my_decode")]
+///    c: u32,
+/// }
+///
+/// fn my_decode(tag:&RawTag, offset: u32)->plctag::Result<u32> {
+///     tag.get_u32(offset + 8).map(|v|v+1)
 /// }
 /// ```
 #[proc_macro_derive(Decode, attributes(tag))]
@@ -96,6 +111,12 @@ pub fn decode_derive(input: TokenStream) -> TokenStream {
 ///    a: u32,
 ///    #[tag(offset=4)]
 ///    b: u32,
+///    #[tag(encode_fn="my_encode")]
+///    c: u32,
+/// }
+///
+/// fn my_encode(v: &u32, tag: &RawTag, offset: u32)->plctag::Result<()> {
+///     tag.set_u32(offset + 8, *v - 1)
 /// }
 /// ```
 #[proc_macro_derive(Encode, attributes(tag))]

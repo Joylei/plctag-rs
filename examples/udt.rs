@@ -10,9 +10,19 @@ use plctag::{Decode, Encode, RawTag, Result, ValueExt};
 #[derive(Default, Debug, Decode, Encode)]
 struct MyUDT {
     #[tag(offset = 0)]
-    v1: u16,
+    a: u16,
     #[tag(offset = 2)]
-    v2: u16,
+    b: u16,
+    #[tag(decode_fn = "my_decode", encode_fn = "my_encode")]
+    c: u32,
+}
+
+fn my_decode(tag: &RawTag, offset: u32) -> plctag::Result<u32> {
+    tag.get_u32(offset + 4).map(|v| v + 1)
+}
+
+fn my_encode(v: &u32, tag: &RawTag, offset: u32) -> plctag::Result<()> {
+    tag.set_u32(offset + 4, *v - 1)
 }
 
 fn main() {
@@ -28,7 +38,7 @@ fn main() {
     let mut value: MyUDT = tag.get_value(offset).unwrap();
     println!("tag value: {:?}", value);
 
-    value.v1 += 10;
+    value.a += 10;
     tag.set_value(offset, value).unwrap();
 
     //write tag
