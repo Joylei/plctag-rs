@@ -159,6 +159,11 @@ set_debug_level(DebugLevel::Info); // set debug level
 
 Please refer to [How to build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#build) to setup build environment.
 
+
+### Static build
+Please refer to [Static build](https://github.com/Joylei/plctag-rs/tree/master/crates/sys#Static%20build)
+
+
 ## Bench
 
 ```shell
