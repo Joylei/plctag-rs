@@ -15,6 +15,6 @@ authors = ["joylei <leingliu@gmail.com>"]
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.65"
+bindgen = "0.66"
 cmake = "0.1"
 pkg-config = "0.3"
