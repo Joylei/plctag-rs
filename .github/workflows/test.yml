@@ -42,6 +42,12 @@ jobs:
           override: true
       - name: Verify versions
         run: rustc --version && rustup --version && cargo --version
+      - name: Install dependencies
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+              export ASAN_OPTIONS=verify_asan_link_order=0
+          fi
+        shell: bash
       - name: Cargo Build
         run: cargo build --verbose
       - name: Build examples
