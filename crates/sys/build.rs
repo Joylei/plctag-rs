@@ -9,11 +9,13 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::{
-    env,
-    ffi::OsStr,
-    fs, io,
-    path::{Component, Path, PathBuf},
+    env, fs, io,
+    path::{Path, PathBuf},
+    time::SystemTime,
 };
+
+#[cfg(target_os = "windows")]
+use std::{ffi::OsStr, path::Component};
 
 fn main() {
     let is_static = check_static();
@@ -103,6 +105,7 @@ fn install_lib_files(lib_path: impl AsRef<Path>, out_path: impl AsRef<Path>) {
     }
 }
 
+#[cfg(target_os = "windows")]
 fn find_target_profile_dir<'a>(dir: impl AsRef<Path> + 'a) -> Option<PathBuf> {
     //out dir looks like ...\plctag-rs\target\debug\build\XXXXX
     //profile dir looks like ...\plctag-rs\target\debug\
