@@ -137,10 +137,9 @@ fn check_static() -> bool {
 }
 
 fn get_env_bool(key: &str) -> Option<bool> {
-    env::var(key).ok().map(|v| {
-        let v = v.to_lowercase();
-        v == "1" || v == "true" || v == "on" || v == "yes"
-    })
+    env::var(key)
+        .ok()
+        .map(|v| matches!(v.to_lowercase().as_ref(), "1" | "true" | "on" | "yes"))
 }
 
 fn is_file_newer(a: &Path, b: &Path) -> bool {
