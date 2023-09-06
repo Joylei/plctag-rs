@@ -18,7 +18,12 @@ use std::{
 use std::{ffi::OsStr, path::Component};
 
 fn main() {
-    let is_static = check_static();
+    // check if static build in the order of:
+    // PLCTAG_STATIC, PLCTAG_DYNAMIC, rustflags: +crt-static
+    let is_static = get_env_bool("LIBPLCTAG_STATIC").unwrap_or(false)
+        || get_env_bool("LIBPLCTAG_DYNAMIC").map_or(false, |v| !v)
+        || cfg!(target_feature = "crt-static");
+
     if is_static {
         eprintln!("static build");
     }
@@ -122,18 +127,6 @@ fn find_target_profile_dir<'a>(dir: impl AsRef<Path> + 'a) -> Option<PathBuf> {
             return None;
         }
     }
-}
-
-/// check if static build in the order of:
-/// PLCTAG_STATIC, PLCTAG_DYNAMIC, rustflags: +crt-static
-fn check_static() -> bool {
-    if let Some(v) = get_env_bool("LIBPLCTAG_STATIC") {
-        return v;
-    }
-    if let Some(v) = get_env_bool("LIBPLCTAG_DYNAMIC") {
-        return !v;
-    }
-    cfg!(target_feature = "crt-static")
 }
 
 fn get_env_bool(key: &str) -> Option<bool> {
