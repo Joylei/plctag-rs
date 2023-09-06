@@ -140,6 +140,16 @@ fn get_env_bool(key: &str) -> Option<bool> {
     })
 }
 
+fn is_file_newer(a: &Path, b: &Path) -> bool {
+    match (a.symlink_metadata(), b.symlink_metadata()) {
+        (Ok(meta_a), Ok(meta_b)) => {
+            meta_a.modified().unwrap_or_else(|_| SystemTime::now())
+                > meta_b.modified().unwrap_or(SystemTime::UNIX_EPOCH)
+        }
+        _ => false,
+    }
+}
+
 fn dir_copy(source_dir: impl AsRef<Path>, dst_dir: impl AsRef<Path>) -> io::Result<()> {
     let source_dir = source_dir.as_ref();
     let dst_dir = dst_dir.as_ref();
@@ -164,8 +174,8 @@ fn dir_copy(source_dir: impl AsRef<Path>, dst_dir: impl AsRef<Path>) -> io::Resu
 
                 if meta.is_dir() {
                     dir_copy(entry.path(), dst)?;
-                } else {
-                    fs::copy(entry.path(), dst)?;
+                } else if !dst.exists() || is_file_newer(entry.path().as_ref(), dst.as_ref()) {
+                    fs::copy(&entry.path(), &dst)?;
                 }
             }
         }
