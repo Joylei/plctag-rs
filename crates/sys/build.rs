@@ -9,14 +9,21 @@ extern crate cmake;
 extern crate pkg_config;
 
 use std::{
-    env,
-    ffi::OsStr,
-    fs, io,
-    path::{Component, Path, PathBuf},
+    env, fs, io,
+    path::{Path, PathBuf},
+    time::SystemTime,
 };
 
+#[cfg(target_os = "windows")]
+use std::{ffi::OsStr, path::Component};
+
 fn main() {
-    let is_static = check_static();
+    // check if static build in the order of:
+    // PLCTAG_STATIC, PLCTAG_DYNAMIC, rustflags: +crt-static
+    let is_static = get_env_bool("LIBPLCTAG_STATIC").unwrap_or(false)
+        || get_env_bool("LIBPLCTAG_DYNAMIC").map_or(false, |v| !v)
+        || cfg!(target_feature = "crt-static");
+
     if is_static {
         eprintln!("static build");
     }
@@ -103,6 +110,7 @@ fn install_lib_files(lib_path: impl AsRef<Path>, out_path: impl AsRef<Path>) {
     }
 }
 
+#[cfg(target_os = "windows")]
 fn find_target_profile_dir<'a>(dir: impl AsRef<Path> + 'a) -> Option<PathBuf> {
     //out dir looks like ...\plctag-rs\target\debug\build\XXXXX
     //profile dir looks like ...\plctag-rs\target\debug\
@@ -121,23 +129,20 @@ fn find_target_profile_dir<'a>(dir: impl AsRef<Path> + 'a) -> Option<PathBuf> {
     }
 }
 
-/// check if static build in the order of:
-/// PLCTAG_STATIC, PLCTAG_DYNAMIC, rustflags: +crt-static
-fn check_static() -> bool {
-    if let Some(v) = get_env_bool("LIBPLCTAG_STATIC") {
-        return v;
-    }
-    if let Some(v) = get_env_bool("LIBPLCTAG_DYNAMIC") {
-        return !v;
-    }
-    cfg!(target_feature = "crt-static")
+fn get_env_bool(key: &str) -> Option<bool> {
+    env::var(key)
+        .ok()
+        .map(|v| matches!(v.to_lowercase().as_ref(), "1" | "true" | "on" | "yes"))
 }
 
-fn get_env_bool(key: &str) -> Option<bool> {
-    env::var(key).ok().map(|v| {
-        let v = v.to_lowercase();
-        v == "1" || v == "true" || v == "on" || v == "yes"
-    })
+fn is_file_newer(a: &Path, b: &Path) -> bool {
+    match (a.symlink_metadata(), b.symlink_metadata()) {
+        (Ok(meta_a), Ok(meta_b)) => {
+            meta_a.modified().unwrap_or_else(|_| SystemTime::now())
+                > meta_b.modified().unwrap_or(SystemTime::UNIX_EPOCH)
+        }
+        _ => false,
+    }
 }
 
 fn dir_copy(source_dir: impl AsRef<Path>, dst_dir: impl AsRef<Path>) -> io::Result<()> {
@@ -164,8 +169,8 @@ fn dir_copy(source_dir: impl AsRef<Path>, dst_dir: impl AsRef<Path>) -> io::Resu
 
                 if meta.is_dir() {
                     dir_copy(entry.path(), dst)?;
-                } else {
-                    fs::copy(entry.path(), dst)?;
+                } else if !dst.exists() || is_file_newer(entry.path().as_ref(), dst.as_ref()) {
+                    fs::copy(&entry.path(), &dst)?;
                 }
             }
         }
