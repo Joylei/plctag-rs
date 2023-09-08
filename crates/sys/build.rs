@@ -157,21 +157,19 @@ fn dir_copy(source_dir: impl AsRef<Path>, dst_dir: impl AsRef<Path>) -> io::Resu
     }
     //eprintln!("cp src: {}", source_dir.display());
     //eprintln!("cp dst: {}", dst_dir.display());
-    for entry in source_dir.read_dir()? {
-        if let Ok(entry) = entry {
-            if let Ok(meta) = entry.metadata() {
-                let name = entry.file_name();
-                if name.to_string_lossy().starts_with(".") {
-                    continue;
-                }
-                let dst = dst_dir.join(name);
-                //eprintln!("{}", dst.display());
+    for entry in (source_dir.read_dir()?).flatten() {
+        if let Ok(meta) = entry.metadata() {
+            let name = entry.file_name();
+            if name.to_string_lossy().starts_with('.') {
+                continue;
+            }
+            let dst = dst_dir.join(name);
+            //eprintln!("{}", dst.display());
 
-                if meta.is_dir() {
-                    dir_copy(entry.path(), dst)?;
-                } else if !dst.exists() || is_file_newer(entry.path().as_ref(), dst.as_ref()) {
-                    fs::copy(&entry.path(), &dst)?;
-                }
+            if meta.is_dir() {
+                dir_copy(entry.path(), dst)?;
+            } else if !dst.exists() || is_file_newer(entry.path().as_ref(), dst.as_ref()) {
+                fs::copy(&entry.path(), &dst)?;
             }
         }
     }
