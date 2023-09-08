@@ -87,7 +87,7 @@ use syn::parse_macro_input;
 ///    c: u32,
 /// }
 ///
-/// fn my_decode(tag:&RawTag, offset: u32)->plctag::Result<u32> {
+/// fn my_decode(tag:&RawTag, offset: u32)->plctag_core::Result<u32> {
 ///     tag.get_u32(offset + 8).map(|v|v+1)
 /// }
 /// ```
@@ -115,7 +115,7 @@ pub fn decode_derive(input: TokenStream) -> TokenStream {
 ///    c: u32,
 /// }
 ///
-/// fn my_encode(v: &u32, tag: &RawTag, offset: u32)->plctag::Result<()> {
+/// fn my_encode(v: &u32, tag: &RawTag, offset: u32)->plctag_core::Result<()> {
 ///     tag.set_u32(offset + 8, *v - 1)
 /// }
 /// ```
