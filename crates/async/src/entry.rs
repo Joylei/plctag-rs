@@ -217,12 +217,14 @@ impl AsyncTag {
             _ => unreachable!(),
         }
 
-        // pending
-        let status = self.recv_event(event).await;
-        debug_assert!(!status.is_pending());
-        if status.is_err() {
+        // Only wait for event if operation is still pending
+        if guard.pending {
+            let status = self.recv_event(event).await;
+            debug_assert!(!status.is_pending());
             guard.pending = false;
-            return Err(status.into());
+            if status.is_err() {
+                return Err(status.into());
+            }
         }
         drop(guard);
         Ok(())
@@ -400,7 +402,10 @@ impl InflightGuard<'_> {
                 self.pending = false;
                 Err(status.into())
             }
-            _ => unreachable!(),
+            Status::Ok => {
+                self.pending = false;
+                Ok(())
+            }
         }
     }
 
@@ -416,7 +421,10 @@ impl InflightGuard<'_> {
                 self.pending = false;
                 Err(status.into())
             }
-            _ => unreachable!(),
+            Status::Ok => {
+                self.pending = false;
+                Ok(())
+            }
         }
     }
 }
